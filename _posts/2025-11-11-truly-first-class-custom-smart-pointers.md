@@ -3,7 +3,9 @@ title: "Truly First-Class Custom Smart Pointers"
 date: 2025-11-11 15:55 +0100
 ---
 
-> I propose this blog post as part of the discussions around the [Field Projections project goal](https://github.com/rust-lang/rust-project-goals/issues/390). Thanks to Benno and everyone involved for fruitful discussions!
+> I propose this blog post as part of the discussions around the [Field Projections project
+goal](https://github.com/rust-lang/rust-project-goals/issues/390). Thanks to Benno Lossin and
+everyone involved for the very fruitful discussions!
 
 What would it take to make custom smart pointers as first-class as possible in Rust? In this post I explore the consequences of taking aliasing seriously.
 

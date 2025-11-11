@@ -3,8 +3,6 @@ title: "Truly First-Class Custom Smart Pointers"
 date: 2025-11-11 15:55 +0100
 ---
 
-# Truly First-Class Custom Smart Pointers
-
 > I propose this blog post as part of the discussions around the [Field Projections project goal](https://github.com/rust-lang/rust-project-goals/issues/390). Thanks to Benno and everyone involved for fruitful discussions!
 
 What would it take to make custom smart pointers as first-class as possible in Rust? In this post I explore the consequences of taking aliasing seriously.
@@ -22,7 +20,7 @@ In this section I explore the kind of code I think should be allowed and how thi
 
 Assume a smart pointer `MyPtr` that implements `Deref` and `DerefMut`. The following causes a borrowck error:
 
-```rust!
+```rust
 let mut x: MyPtr<Foo>  = MyPtr::new(..);
 let a = &mut x.a;
 let b = &mut x.b;
@@ -34,7 +32,7 @@ This code is allowed if instead of `MyPtr<Foo>` we have `&mut Foo` or `Box<Foo>`
 
 The desugaring shows why the error: the second call to `deref_mut` invalidates `a`.
 
-```rust!
+```rust
 // Desugars to:
 let mut x: MyPtr<Foo> = MyPtr::new(..);
 let deref_x: &mut Foo = (&mut x).deref_mut();
@@ -72,7 +70,7 @@ not create intermediate pointer values when doing nested projections.
 ### Autoref
 
 To be really first-class, autoref should Just Work:
-```rust!
+```rust
 impl Bar {
     fn takes_shared(&self) { ... }
     fn takes_mut(&mut self) { ... }
@@ -88,7 +86,7 @@ x.bar.takes_my_mut();
 For reasons like before we can't first make a `MyMut` pointing to `x.bar` then coerce it to `&Bar`; it must happen in one go.
 
 The conclusion I draw is: a smart pointer should be able to opt-in to being projected into various other pointers. Something like:
-```rust!
+```rust
 trait Project<P: Projection, Target>
 where
   Self: PointsTo<P::Source>,
@@ -118,7 +116,7 @@ The conclusion I draw: places are a powerful and something users are familiar wi
 ### Proposed solution: custom places
 
 I propose that custom smart pointers should also work via places: if `x: MyPtr<T>`, then `*x` would be a place expression of type `T`, and there would be a syntax to "borrow as that pointer": (bikeshed pending) `@MyPtr(x.a.b)`. A full desugaring of `x.a.b.foo()` may then be:
-```rust!
+```rust
 Foo::foo(@MyPtr((*x).a.b))
 // This then compiles to a method call like:
 Foo::foo(<MyPtr as Project>::project(&raw const x, projection_type!(T, a.b)))
@@ -126,7 +124,7 @@ Foo::foo(<MyPtr as Project>::project(&raw const x, projection_type!(T, a.b)))
 
 I'm imagining a `HasPlace` trait: if `x: X` and `X: HasPlace`, then `*x` is allowed and is a place expression of type `X::Target`.
 
-```rust!
+```rust
 trait HasPlace {
     type Target: ?Sized;
 }
@@ -145,7 +143,7 @@ Moreover, each smart pointer becomes its own kind of borrow. So one could write 
 
 ## Detailed Proposal
 
-```rust!
+```rust
 /// A type that "contains" another. This is used for smart pointers, and for
 /// containers/wrappers whose purpose is to "contain" or "modify" a wrapped
 /// type.
@@ -329,7 +327,7 @@ From a borrowck perspective, moving values out isn't hard: it's operationally a 
 
 What remains then is a pointer in an invalid state, e.g. a `Box<T>` with a moved-out `T`, which still needs to get cleaned up (e.g. to dealloc the memory), or made full again. Recycling an idea from Benno, this could look like:
 
-```rust!
+```rust
 /// Place containers that allow moving out of the place. The actual moves are
 /// done with `PlaceRead`. If `DropHusk` is not implemented, borrowck
 /// will require any moved-out-of subplaces to have a new value written to them
@@ -366,7 +364,7 @@ This seamlessly supports moving some values out (using `PlaceRead`) then moving 
 ### Reborrowing
 
 To be truly first-class, custom places should get reborrowing like `&mut` does:
-```rust!
+```rust
 fn foo(x: MyMutPtr<Foo>) {}
 
 let x = ...;
@@ -378,13 +376,13 @@ Seems easy enough to use the same mechanism: wherever a `&mut` reborrow would ha
 
 Note this important edge about reborrowing: https://haibane-tenshi.github.io/rust-reborrowing/ . Our proposal does _not_ run into this, because the target lifetime is given to us by the borrow-checker, with no trait-system relation to the source lifetime. We let the borrow-checker enforce the correct relation, which I think makes it work correctly. Or maybe we'll need some relationship. But there for sure isn't the outer `&mut` that caused the issue mentioned in the blog post.
 
-```rust!
+```rust
 impl<T, P: Projection> PlaceBorrow<'a, P, MyMutPtr<'a, P::Target>> for MyMutPtr<'_, T> { ... }
 ```
 
 This proposal is however in tension with the [`Reborrow` project goal](https://github.com/rust-lang/rust/issues/145612): they want to support a lot more than place-like things:
 
-```rust!
+```rust
 fn foo(x: Option<&mut Foo>) {}
 
 let x = ...;
@@ -407,7 +405,7 @@ That's a non-obvious part of the feature: what of `**x` for `P<Q<T>>`? E.g. `MyP
 The first point is that we can't get the `Q<T>` by value here if it's not `Copy`. Even with compiler-emitted unsafe, that would break things if e.g. it contains a `Cell`.
 
 So I imagine:
-```rust!
+```rust
 let x: P<Q<Foo>> = ...;
 let a = @R (**x).a;
 // `**x` is a `Q`-kind-of-place, so presumably we use `impl PlaceBorrow<P, R<A>>
@@ -420,7 +418,7 @@ much nicer. Could even relax `Copy` a bit since reading out a `&mut` is probably
 what's best here.
 
 A possibly-overengineered alternative would be custom behavior with a trait. Actually idk how that would work. I'm secretly hoping I can encode the "`&&mut T` becomes `&T`" behavior of match ergonomics into a trait. Someone should stop me before I go too far x).
-```rust!
+```rust
 /// Dereference a pointer contained in the current place.
 trait PlaceDeref<P, X>
 where
@@ -434,7 +432,7 @@ where
 
 Pattern-matching is based on places, and we can make it work with custom places too!
 
-```rust!
+```rust
 fn foo(x: MyPtr<Option<Foo>>) {
     match *x {
         Some(ref foo) => ...,
@@ -457,7 +455,7 @@ fn foo(x: MyPtr<Option<Foo>>) {
 The first question is the syntax for custom-borrowing in patterns. I could imagine using the same `@MyPtr`: `Some(@MyPtr foo)`. It's not fully satisfactory, bikeshed open.
 
 The second question is match ergonomics. What should this do:
-```rust!
+```rust
 fn foo(x: MyPtr<Option<Foo>>) {
     match x {
         Some(foo) => ...,
@@ -490,7 +488,7 @@ Syntactically I'm fond of `MaybeUninit` etc working as an operation from places 
 
 Place projections in rust include field projections, but also indexing (see [compiler docs](https://doc.rust-lang.org/nightly/nightly-rustc/rustc_middle/mir/type.PlaceElem.html))! In fact, did you know that the borrow-checker does know how to track constant indices? It's only observable with slice patterns:
 
-```rust!
+```rust
 fn foo(mut x: Box<[u32]>) {
     let [ref mut a, ..] = *x else { return };
     let [_, ref mut b, ref mut rest @ ..] = *x else { return };
@@ -540,7 +538,7 @@ The safety requirements do be very WIP, more work needed there and on the intera
 ### Ergonomics
 
 This proposal does have a large ergonomic cost. I often impl `Deref`/`DerefMut` on wrapper structs and such; using custom place projections to get finer aliasing requires this mess of unsafe impls:
-```rust!
+```rust
 struct Data { ... }
 struct WrappedData {
     data: Data,
@@ -569,7 +567,7 @@ impl<P> PlaceBorrow<'a, P, &'a mut P::Target> for WrappedData
 { /* same */ }
 ```
 With these impls I can simultaneously borrow fields of the contained `Data`:
-```rust!
+```rust
 let a = &mut wrapped_data.data_field1;
 let b = &mut wrapped_data.data_field2;
 ```
@@ -596,7 +594,7 @@ For partial borrows, idk. Is the partiality part of the reference? Part of the l
 ### Fun application: struct-of-arrays
 
 Here's a sketch of SoA in action (assuming a particular way to inspect projections, see [here](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Naming.20the.20type.20for.20nested.20projections/with/553898757)):
-```rust!
+```rust
 struct Foo {
   a: A,
   b: B,
@@ -676,4 +674,37 @@ fn test() {
     let a = &elem.a; // works
     let aa = &elem.a.blah; // works
 }
+```
+
+### Fun application: `&own` references
+
+This proposal allows ergonomic owning references: they take ownership of the value and are
+responsible for dropping it, but don't own the allocation itself.
+
+```rust
+struct Own<'a, T>(*const T, PhantomData<&'a T>);
+impl HasPlace for Own<'_, T> {
+  // This means that any reborrow into `Own` is treated like a move out by borrowck,
+  // in the sense that no other access to that place is allowed.
+  const BORROW_KIND = BorrowKind::Owned;
+  ..
+}
+
+// Borrowck gives us this `'a` and will use it to know how long the borrow lasts.
+impl PlaceBorrow<'a, P, Own<'a, P::Target>> for Box<P::Source> { ... }
+impl PlaceRead<..> for Own<..> { .. }
+impl PlaceMove<..> for Own<..> { .. }
+
+// Now we can write:
+let b: Box<Foo> = ...;
+let own_a: Own<'_, A> = @Own b.a;
+b.a = another_a(); // error: the place is borrowed
+let a = *own_a; // reads the value, then calls `PlaceMove::drop_husk` on `own_a`
+let _ = &b.a; // error: the place is moved out
+use(b); // error: b is partially moved out of
+b.a = another_a(); // ok
+// Here `b` is normal again.
+let own_a: Own<'_, A> = @Own b.a;
+// `b.a` is considered moved out here, so at the end of the function `b.other_field` will be
+// dropped if there is one, and `PlaceMove::drop_husk` will be called on `b`
 ```

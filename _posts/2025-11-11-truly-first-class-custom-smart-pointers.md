@@ -50,9 +50,7 @@ The conclusion I draw is: the meaning of `&mut x.a` should change/be extended.
 > Note: I initially imagined multi-field projections because I feared aliasing issues. After [discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Multi-level.20projections/near/554567377), it seems that Tree Borrows is actually compatible with field-by-field projections wrt aliasing. That has other issues tho.
 
 > This section used to be "we can't project one field at a time" but I no longer think that.
-Instead, take this as a proposal: I propose we project all at once instead of field-by-field. We
-discuss the field-by-field case
-[here](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Field-by-field.20projections.20in.20the.20place.20model/with/554924231).
+Instead, take this as a proposal: I propose we project all at once instead of field-by-field for now.
 
 The basic desire of the Field Projections initiative is some way to go from `MyPtr<Foo>` to a `MyPtr<Field>` that points to a field of the original `Foo`.
 
@@ -65,7 +63,9 @@ creation of intermediate references that don't assert uniqueness, but we have to
 pass them by-value for example.
 
 In the meantime however, I propose this hypothesis: projection should work all at once; we should
-not create intermediate pointer values when doing nested projections.
+not create intermediate pointer values when doing nested projections. We discuss the field-by-field
+case
+[here](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Field-by-field.20projections.20in.20the.20place.20model/with/554924231).
 
 ### Autoref
 

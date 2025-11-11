@@ -1,6 +1,6 @@
 ---
 title: "Truly First-Class Custom Smart Pointers"
-date: 2025-11-11 15:40
+date: 2025-11-11 15:55 +0100
 ---
 
 # Truly First-Class Custom Smart Pointers

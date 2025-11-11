@@ -8,8 +8,9 @@ if not title:
     exit(0)
 
 # Generate filename
-date_str = datetime.now().strftime("%Y-%m-%d")
-datetime_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+now = datetime.now().astimezone()
+date_str = now.strftime("%Y-%m-%d")
+datetime_str = now.strftime("%Y-%m-%d %H:%M %z")
 slug = title.lower().replace(" ", "-").replace("'", "").replace("`", "")
 filename = f"_posts/{date_str}-{slug}.md"
 

@@ -12,7 +12,7 @@ What would it take to make custom smart pointers as first-class as possible in R
 These reflections originated on
 [Zulip](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Field.20projections.20and.20places/with/553831123)
 and went over a few iterations. This is a snapshot of the proposal; it may keep evolving in this
-[HackMd document](https://hackmd.io/N0sjLdl1S6C58UddR7Po5g).
+[HackMD document](https://hackmd.io/N0sjLdl1S6C58UddR7Po5g).
 
 ## The case for a solution based on places
 

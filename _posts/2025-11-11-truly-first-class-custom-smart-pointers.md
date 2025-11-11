@@ -83,7 +83,8 @@ x.bar.takes_mut();
 x.bar.takes_my_mut();
 ```
 
-For reasons like before we can't first make a `MyMut` pointing to `x.bar` then coerce it to `&Bar`; it must happen in one go.
+From the previous section, we don't want to make a `MyMut` pointing to `x.bar` then coerce it to
+`&Bar`; it should happen in one go.
 
 The conclusion I draw is: a smart pointer should be able to opt-in to being projected into various other pointers. Something like:
 ```rust
@@ -103,7 +104,7 @@ impl<T, U, P: Projection> Project<P, MyRefMut<'_, U>> for MyRefMut<'_, T> {...}
 
 ### Compositionality
 
-Despite the point above that we shouldn't create intermediate pointer values, syntax should be compositional. `x.a.b` should be the same a `(x.a).b`, where the individual components make sense.
+Despite the point above that we shouldn't create intermediate pointer values, syntax should be compositional. `x.a.b` should be the same as `(x.a).b`, where the individual components make sense.
 
 This already has a solution in Rust: place expressions. `x`, `*x`, `x.a` and `x.a.b` are expressions that denote a place.
 
@@ -111,14 +112,14 @@ The various part at play are: if `x: &mut T` and `foo` takes `&self`, `x.a.foo()
 
 Places are also the basis onto which the borrow-checker operates; they're already what we want to reason about for aliasing and such.
 
-The conclusion I draw: places are a powerful and something users are familiar with, we should make use of it.
+The conclusion I draw: places are a powerful concept and something users are familiar with, we should make use of it.
 
 ### Proposed solution: custom places
 
-I propose that custom smart pointers should also work via places: if `x: MyPtr<T>`, then `*x` would be a place expression of type `T`, and there would be a syntax to "borrow as that pointer": (bikeshed pending) `@MyPtr(x.a.b)`. A full desugaring of `x.a.b.foo()` may then be:
+I propose that custom smart pointers should also work via places: if `x: MyPtr<T>`, then `*x` would be a place expression of type `T`, and there would be a syntax to "borrow as that pointer": (bikeshed pending) `@MyPtr x.a.b`. A full desugaring of `x.a.b.foo()` may then be:
 ```rust
-Foo::foo(@MyPtr((*x).a.b))
-// This then compiles to a method call like:
+Foo::foo(@MyPtr (*x).a.b)
+// This is borrow-checked, then compiles to a method call like:
 Foo::foo(<MyPtr as Project>::project(&raw const x, projection_type!(T, a.b)))
 ```
 
@@ -138,7 +139,7 @@ In today's rust there are a few things we can do to a place:
 
 I propose that each of these operations should be governed by a different trait. Because each is opt-in, this allows for virtual places that don't correspond to a region in memory, e.g. in the struct-of-arrays representation (see worked-out example at the end).
 
-Moreover, each smart pointer becomes its own kind of borrow. So one could write e.g. `@RcRef((*x).a.b)` where `x: Rc<T>` (using the [`rcref` crate](https://docs.rs/rcref/latest/rcref/struct.RcRef.html)). This is how we implement the "pointer projection" feature that the Field Projection initiative has been discussing.
+Moreover, each smart pointer becomes its own kind of borrow. So one could write e.g. `@RcRef (*x).a.b` where `x: Rc<T>` (using the [`rcref` crate](https://docs.rs/rcref/latest/rcref/struct.RcRef.html)). This is how we implement the "pointer projection" feature that the Field Projection initiative has been discussing.
 
 
 ## Detailed Proposal
@@ -372,7 +373,7 @@ foo(x);
 foo(x);
 ```
 
-Seems easy enough to use the same mechanism: wherever a `&mut` reborrow would have been inserted, to the same for custom places. E.g. here the first `foo(x)` would become `foo(@MyMutPtr(*x))`.
+Seems easy enough to use the same mechanism: wherever a `&mut` reborrow would have been inserted, to the same for custom places. E.g. here the first `foo(x)` would become `foo(@MyMutPtr *x)`.
 
 Note this important edge about reborrowing: https://haibane-tenshi.github.io/rust-reborrowing/ . Our proposal does _not_ run into this, because the target lifetime is given to us by the borrow-checker, with no trait-system relation to the source lifetime. We let the borrow-checker enforce the correct relation, which I think makes it work correctly. Or maybe we'll need some relationship. But there for sure isn't the outer `&mut` that caused the issue mentioned in the blog post.
 
@@ -396,7 +397,10 @@ There's a bit of an impedance mismatch between the two ideas: the "just lifetime
 
 And if `Option<&mut Foo>` can be auto-reborrowed, then we'd want `Option<MyMutPtr<Foo>>` too! But that will need to run code, e.g. if the pointer is `Rc`-backed.
 
-Of note (thanks Benno!) is that this interacts with the ergonomic-ref-counting proposal. On way to cut this apple would be a `unsafe trait TrivialReborrow` that guarantees that trivial-projection reborrowing runs no code, which would make it compatible with the `Reborrow` proposals.
+Of note (thanks Benno!) is that this interacts with the ergonomic-ref-counting proposal. On way to
+cut this apple would be a `unsafe trait TrivialReborrow` that guarantees that trivial-projection
+reborrowing runs no code and only allow auto-reborrows for such places. This would make it
+compatible with the `Reborrow` proposals.
 
 ### Double-deref
 
@@ -463,7 +467,7 @@ fn foo(x: MyPtr<Option<Foo>>) {
     }
 }
 ```
-Arguably this could to `let foo = @MyPtr(x.Some.0)` automatically. But then what if `x: &MyPtr<Option<Foo>>`? Or `x: MyPtr<&Option<Foo>>`? Or `x: Pin<&mut Option<Foo>>` of course? I don't know a good answer yet.
+Arguably this could do `let foo = @MyPtr x.Some.0` automatically. But then what if `x: &MyPtr<Option<Foo>>`? Or `x: MyPtr<&Option<Foo>>`? Or `x: Pin<&mut Option<Foo>>` of course? I don't know a good answer yet.
 
 My first instinct would be "keep the innermost pointer type". For `x: &MyPtr<Option<Foo>>` that would mean using `&raw const *x: *const MyPtr<..>` to get a `MyPtr<Foo>`. Who knows it that makes sense in general... Feels related to the double-deref point above.
 
@@ -515,6 +519,7 @@ For our purposes, this means that for truly first-class support, we need indexin
 
 Big design space, see
 [discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Naming.20the.20type.20for.20nested.20projections/with/553898757).
+Also made much simpler if we do field-by-field.
 
 ### Metadata handling
 

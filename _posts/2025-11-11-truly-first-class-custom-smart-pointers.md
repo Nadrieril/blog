@@ -685,8 +685,10 @@ fn test() {
 
 ### Fun application: `&own` references
 
-This proposal allows ergonomic owning references: they take ownership of the value and are
-responsible for dropping it, but don't own the allocation itself.
+This proposal allows ergonomic owning references (described e.g.
+[here](https://internals.rust-lang.org/t/a-sketch-for-move-semantics/18632/19?u=illicitonion)): they
+take ownership of the value and are responsible for dropping it, but don't own the allocation
+itself.
 
 ```rust
 struct Own<'a, T>(*const T, PhantomData<&'a T>);

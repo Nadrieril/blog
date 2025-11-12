@@ -9,7 +9,8 @@ I propose we could make this a more explicit part of the language by giving crat
 language to control their present API surface and opt-in/opt-out of future API changes.
 
 The proposed keyword choices are very much not what I expect to be accepted; I'm just trying to
-share the idea for now. Please share other compelling examples!
+share the idea for now. Please share other compelling examples! (I will edit this blog post to
+include more examples).
 
 ```rust
 // Equivalent to `#[non_exhaustive]` on enums.

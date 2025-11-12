@@ -70,11 +70,6 @@ trait Trait { ... }
 #[future_proof(forbid(author, add_method(not_const))]
 trait Trait { ... }
 
-// Allows the crate author to later add an `impl Trait for &T` impl, thus
-// preventing downstream crates from implementing this trait on `&TheirType`.
-#[future_proof(allow(author, impl(Trait for &_))]
-trait Trait { ... }
-
 trait Trait {
     // Prevents downstream crates from overriding this method. Replaces `final`
     // methods (https://github.com/rust-lang/rfcs/pull/3678).

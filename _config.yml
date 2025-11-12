@@ -1,3 +1,8 @@
-theme: minima
 author: Nadri
 title: Nadri's musings
+
+plugins:
+  - jekyll-remote-theme
+
+# Use upstream minima instead of GitHub Page's outdated version.
+remote_theme: jekyll/minima

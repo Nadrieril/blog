@@ -1,6 +1,6 @@
 ---
 # Copied the minima layout to fix the comments section not appearing.
-layout: base
+layout: default
 ---
 <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
 
@@ -36,6 +36,8 @@ layout: base
   <div class="post-content e-content" itemprop="articleBody">
     {{ content }}
   </div>
+
+  Jekyll env is: {{ jekyll.environment }}
 
   {% if page.comments == false -%}
   <div class="comments-disabled-message">

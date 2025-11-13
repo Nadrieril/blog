@@ -75,7 +75,12 @@ impl<T> Collection<T> {
     {
         print!("[");
         for entry in self.objects.borrow().iter() {
-            // Safety: the `Drop` impl of `Entry` guarantees that the weak refs we hold are valid.
+            // Safety: the `&weak` ref guarantees:
+            // 1. that `entry.collection` cannot be changed and keeps pointing to this collection;
+            // 2. that the entry won't be deallocated without running `Drop`.
+            // The `Drop` impl of `Entry` will remove itself from its `entry.collection`, so
+            // combined with the guarantees above we know that the weak refs we hold here can be
+            // used.
             let entry : &Entry<T> = unsafe { &**entry };
             print!(" {:?},", entry.x);
         }
@@ -87,7 +92,13 @@ impl<T> Drop for Collection<T> {
     fn drop(&mut self) {
         // Go through the entries to remove pointers to the collection.
         for entry in self.objects.borrow().iter() {
-            // Safety: the `Drop` impl of `Entry` guarantees that the weak refs we hold are valid.
+            // Safety: the `&weak` ref guarantees:
+            // 1. that `entry.collection` cannot be changed without cooperation from the `Entry`
+            //   API, and therefore keeps pointing to this collection;
+            // 2. that the entry won't be deallocated without running `Drop`.
+            // The `Drop` impl of `Entry` will remove itself from its `entry.collection`, so
+            // combined with the guarantees above we know that the weak refs we hold here can be
+            // used.
             let entry : &Entry<T> = unsafe { &**entry };
             entry.collection.set(None);
         }
@@ -104,7 +115,13 @@ impl<T> Drop for Entry<T> {
     fn drop(&mut self) {
         // Go through collection to remove this entry.
         if let Some(collection) = self.collection.get() {
-            // Safety: the `Drop` impl of `Collection` guarantees that the weak ref we hold is valid.
+            // Safety: the `&weak` ref guarantees:
+            // 1. that `collection.objects` cannot be changed without cooperation from the
+            //   `Collection` API;
+            // 2. that the collection won't be deallocated without running `Drop`.
+            // The `Drop` impl of `Collection` will remove itself from all the entries it contains,
+            // so combined with the guarantees above we know that the weak ref we hold here can be
+            // used.
             let collection : &Collection<T> = unsafe { &*collection };
             collection.objects.borrow_mut().retain(|ptr| ptr.addr() != self.addr());
         }

@@ -3,8 +3,8 @@ title: "Pinning is a kind of static borrow"
 date: 2025-11-13 00:20 +0100
 ---
 
-> Disclaimer: I am by no means a `Pin` expert, this is potentially incorrect in subtle ways, please
-let me know if so!
+> Disclaimer: I am by no means a `Pin` expert so this may be incorrect in subtle ways. Please let me
+know if so!
 
 Pin is notoriously subtle: once pinned, a place has restricted access _forever_, even after the
 `Pin<&mut T>` reference goes out of scope. The reason is simple: we want to allow pointers to the
@@ -35,7 +35,7 @@ in ways that don't break the invariants imposed by the `&'static weak` reference
 
 Note that it's ok to take a `'static` reference of a local variable here because `&weak` allows the
 pointed-to place to be deallocated. Of course it can then only be used if you have some mechanism to
-know whether the target is still allocated. This is definitely a weird kind of reference.
+know whether the target is still allocated.[^1]
 
 Here's how it would work in an example: intrusive linked lists (based on [Ralf's post on the
 topic](https://www.ralfj.de/blog/2018/04/10/safe-intrusive-collections-with-pinning.html)).
@@ -138,7 +138,7 @@ Here the collection keeps a `&weak` reference to each entry, and we rely on the 
 `&weak` for the safety of our API. We could imagine using real lifetimes instead of `'static`: the
 entry only needs to stay pinned as long as it exists inside the collection. Once we remove an entry,
 its `&weak` reference goes out of scope, so we could in theory go back to doing whatever we want
-with the entry.
+with the entry.[^2]
 
 Of note, which wasn't obvious to me, is that the collection too needs to be pinned. That's because
 the entries need to keep a pointer to it. This highlights the two ingredients for a safe `Pin`-based
@@ -168,16 +168,23 @@ impl Drop for B<'_> {
 }
 ```
 
-Note also that the reason for the linked list types being `!Unpin` is that swapping out two `Entry`s
-would create an inconsistency in the reference cycle. In some way the "cause" of `Entry: !Unpin` is
-the contained `&weak Collection`; so when `entry.collection.is_none()` we could in theory safely
-move the entry around. Similarly the reason that `B` is `!Unpin` is to ensure the `&AtomicBool`
-doesn't get swapped out while `B` is weakly borrowed.
+We can also understand the need for `!Unpin`: without it, one could swap two `Entry`s, which would
+make their `collection` field no longer point to the right thing. In some way the "cause" of `Entry:
+!Unpin` is the contained `&weak Collection`; so when `entry.collection.is_none()` we could in theory
+safely move the entry around.[^3] Similarly the reason that `B` is `!Unpin` is to ensure the
+`&AtomicBool` doesn't get swapped out while `B` is weakly borrowed.
 
 So here we go, I personally found this enlightening: `Pin<P>` is basically a way to manage a particular
-kind of untracked static borrow in a safe API. When I receive a `Pin<P>` I can store the attached
+kind of untracked static borrow in a safe API. When I have a `Pin<P>` I can store the attached
 weak reference wherever I want, and holding such a weak reference limits what can happen to the
-place just enough that we can keep things consistent and safe. I can't help but be impressed at how
-neatly this works, kudos to those who came up with this.
+place just enough that we can keep things consistent and safe.[^4]
 
 Let me know if you found this mental model helpful!
+
+[^1]: I'm not sure this could actually be implemented consistently in the language. E.g. a normal reborrow `&*x` imposes a relationship between the lifetimes of the initial reference and the reborrowed one because a reference cannot outlive the data it points to. But if `x: &weak T`, why not `&weak *x: &'static weak T` since weak refs can outlive what they point to? This is definitely a weird kind of reference.
+
+[^2]: This is not something that can be tracked by today's borrow-checker though. Removing an item from a `Vec<Foo<'a>>` doesn't change the type of the collection so the borrow-checker can't know that the lifetime can be ended now.
+
+[^3]: Wouldn't it be cute if we could express things like that in the trait system? Or maybe terrifying. I can't decide.
+
+[^4]: I can't help but be impressed at how neatly this works, this feels like a tour de force. I vaguely remember lengthy discussions at the time; it was not clear at all whether something like this would be feasible! So kudos to everyone involved.

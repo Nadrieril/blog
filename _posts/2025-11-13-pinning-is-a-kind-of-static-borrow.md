@@ -181,7 +181,7 @@ place just enough that we can keep things consistent and safe.[^4]
 
 Let me know if you found this mental model helpful!
 
-[^1]: I'm not sure this could actually be implemented consistently in the language. E.g. a normal reborrow `&*x` imposes a relationship between the lifetimes of the initial reference and the reborrowed one because a reference cannot outlive the data it points to. But if `x: &weak T`, why not `&weak *x: &'static weak T` since weak refs can outlive what they point to? This is definitely a weird kind of reference.
+[^1]: I wonder if this can be implemented consistently in the language: lifetimes are normally linked to loans of a place, but here the loan could outlive the place? I hope that doesn't break anything else. This is definitely a weird kind of reference.
 
 [^2]: This is not something that can be tracked by today's borrow-checker though. Removing an item from a `Vec<Foo<'a>>` doesn't change the type of the collection so the borrow-checker can't know that the lifetime can be ended now.
 

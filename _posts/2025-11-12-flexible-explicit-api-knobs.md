@@ -14,60 +14,60 @@ include more examples).
 
 ```rust
 // Equivalent to `#[non_exhaustive]` on enums.
-#[future_proof(allow(author, add_variants)]
+#[semver_compatible(allow(author, add_variants)]
 enum Enum { ... }
 
 enum Enum {
     // Kinda opposite of `#[non_exhaustive]`; forbids user from matching or
     // constructing this variant.
-    #[future_proof(allow(author, remove_variant)]
+    #[semver_compatible(allow(author, remove_variant)]
     Variant1,
     ..
 }
 
 // Equivalent to `#[non_exhaustive]` on structs.
-#[future_proof(allow(author, add_fields)]
+#[semver_compatible(allow(author, add_fields)]
 struct Struct { ... }
 
 // The author can add fields but only public ones. This means downstream
 // crates can use FRU (idea from scottmcm, ty!).
-#[future_proof(allow(author, add_fields(pub))]
+#[semver_compatible(allow(author, add_fields(pub))]
 struct Struct { ... }
 
 // The author can add fields but only with default values. This means downstream
 // crates can construct it (idea from scottmcm, ty!).
-#[future_proof(allow(author, add_fields(with_defaults))]
+#[semver_compatible(allow(author, add_fields(with_defaults))]
 struct Struct { ... }
 
 // Allows downstream crates to rely on the layout of this struct. Could be used
 // for safe transmutation to reason about API/ABI stability.
-#[future_proof(forbid(author, change_layout))]
+#[semver_compatible(forbid(author, change_layout))]
 #[repr(C)]
 struct Struct { ... }
 
 // Bound the size of the struct.
-#[future_proof(size <= 42)]
+#[semver_compatible(size <= 42)]
 struct Struct { ... }
 
 // Commit to keeping these auto traits implemented.
-#[future_proof(implements(Send))]
-#[future_proof(implements(const Destruct))]
+#[semver_compatible(implements(Send))]
+#[semver_compatible(implements(const Destruct))]
 struct Struct { ... }
 
 // Prevents downstream crates from implementing this trait. Basically builtin "sealed traits".
-// This isn't a "future-proof" kind of thing so I picked another keyword but I
+// This isn't a semver kind of thing so I picked another keyword but I
 // don't like it much.
 #[api(forbid(downstream, impl)]
 trait Trait { ... }
 
 // Ensures a trait is and stays dyn safe.
-#[future_proof(is_dyn_safe)]
+#[semver_compatible(is_dyn_safe)]
 trait Trait { ... }
 
 // Prevents adding a new method if it's not const.
 // IIUC, should be enough to allow `const Trait` bounds. If so, that's an
 // alternative to the `const trait Trait` syntax.
-#[future_proof(forbid(author, add_method(not_const))]
+#[semver_compatible(forbid(author, add_method(not_const))]
 trait Trait { ... }
 
 trait Trait {
@@ -83,16 +83,16 @@ trait Trait {
 
 
 // Ensures the lifetime/type param stays covariant.
-#[future_proof(covariant('a))]
-#[future_proof(covariant(T))]
+#[semver_compatible(covariant('a))]
+#[semver_compatible(covariant(T))]
 struct Foo<'a, T> { ... }
 
 // Prevents `foo::<...>` syntax as the generic parameters may change, e.g. going to `impl Trait` instead of an explicit param.
-#[future_proof(allow(author, change_generics))]
+#[semver_compatible(allow(author, change_generics))]
 fn foo<T: Trait>(..) { ... }
 
 // Ensures the generated coroutine implements `Send`.
-#[future_proof(implements(Send))]
+#[semver_compatible(implements(Send))]
 async fn foo() { ... }
 ```
 

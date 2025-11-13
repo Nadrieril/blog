@@ -49,7 +49,11 @@ The conclusion I draw is: the meaning of `&mut x.a` should change/be extended.
 
 ### Let's project one field at a time
 
-> Note: I initially imagined multi-field projections because I feared aliasing issues. After [discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Multi-level.20projections/near/554567377), it seems that Tree Borrows is actually compatible with field-by-field projections wrt aliasing. That has other issues tho.
+> Note: I initially imagined multi-field projections because I feared aliasing issues. After
+[discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Multi-level.20projections/near/554567377),
+does seem that field-by-field borrows can't work if the smart pointers contain `&mut`/`&`
+references. But we could imagine intermediate projections that contain raw pointers, so the question
+isn't settled.
 
 > This section used to be "we can't project one field at a time" but I no longer think that.
 Instead, take this as a proposal: I propose we project all at once instead of field-by-field for now.
@@ -59,10 +63,10 @@ The basic desire of the Field Projections initiative is some way to go from `MyP
 There is an important question: can we project one field at a time? I.e. can `project!(x, field.a)` be implemented as `project!(project!(x, field), a)`?
 
 Possibly, but we have to be careful. See
-[discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Multi-level.20projections/near/554567377)
-for example: for a type like `struct MyMutPtr<'a, T>(&'a mut T)`, the aliasing model _may_ allow the
-creation of intermediate references that don't assert uniqueness, but we have to be careful to not
-pass them by-value for example.
+[discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Multi-level.20projections/near/555233842)
+for example: for a type like `struct MyMutPtr<'a, T>(&'a mut T)`, we can't freely project
+field-by-field and get disjoint borrows as this could create UB. We could use intermediate `*mut`
+pointers though.
 
 In the meantime however, I propose this hypothesis: projection should work all at once; we should
 not create intermediate pointer values when doing nested projections. We discuss the field-by-field

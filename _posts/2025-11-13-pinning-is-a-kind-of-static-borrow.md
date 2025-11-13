@@ -3,10 +3,9 @@ title: "Pinning is a kind of static borrow"
 date: 2025-11-13 00:20 +0100
 ---
 
-Pin is notoriously subtle: once pinned, a place can no longer be freely accessed _forever_,
-even after the `Pin<&mut T>` reference goes out of scope. The reason is simple: we want to allow
-pointers to the place to be stored in locations we know nothing about, so the data better stay
-consistent.
+Pin is notoriously subtle: once pinned, a place has restricted access _forever_, even after the
+`Pin<&mut T>` reference goes out of scope. The reason is simple: we want to allow pointers to the
+place to be stored in locations we know nothing about, so the data there better stay consistent.
 
 In other words, a place has restricted access because some pointers to it may exist. Well this is
 typically the kind of thing the borrow-checker tracks!
@@ -45,7 +44,7 @@ impl<T> !Unpin for Collection<T> {}
 
 struct Entry<T> {
     x: T,
-    // set to Some if we are part of some collection
+    // Set to `Some` if we are part of some collection.
     // The `Drop` impl of `Collection` guarantees that the collection can be accessed.
     collection: Cell<Option<&'static weak Collection<T>>>,
 }
@@ -56,26 +55,27 @@ impl<T> Collection<T> {
         Collection { objects: RefCell::new(Vec::new()) }
     }
 
-    // Add the entry to the collection
+    // Add the entry to the collection.
     fn insert(mut self: Pin<&mut Self>, entry: Pin<&mut Entry<T>>) {
         if entry.collection.get().is_some() {
             panic!("Can't insert the same object into multiple collections");
         }
-        // Pointer from collection to entry. This `&mut` is unsafe: not all mutations through it are
-        // allowed.
-        let this : &mut Self = unsafe { Pin::get_mut(&mut self) };
-        this.objects.borrow_mut().push(Pin::get_weak(&entry));
-        // Pointer from entry to collection
+        // Pointer from collection to entry. This `&mut` is unsafe: not all mutations
+        // through it are allowed.
+        let mut_this : &mut Self = unsafe { Pin::get_mut(&mut self) };
+        mut_this.objects.borrow_mut().push(Pin::get_weak(&entry));
+        // Pointer from entry to collection.
         let weak_this: &weak Self = Pin::get_weak(&self);
         entry.collection.set(Some(weak_this));
     }
 
-    // Show all entries of the collection
+    // Show all entries of the collection.
     fn print_all(self: Pin<&mut Self>)
     where T: ::std::fmt::Debug
     {
         print!("[");
         for entry in self.objects.borrow().iter() {
+            // Safety: the `Drop` impl of `Entry` guarantees that the weak refs we hold are valid.
             let entry : &Entry<T> = unsafe { &**entry };
             print!(" {:?},", entry.x);
         }
@@ -85,8 +85,9 @@ impl<T> Collection<T> {
 
 impl<T> Drop for Collection<T> {
     fn drop(&mut self) {
-        // Go through the entries to remove pointers to collection
+        // Go through the entries to remove pointers to the collection.
         for entry in self.objects.borrow().iter() {
+            // Safety: the `Drop` impl of `Entry` guarantees that the weak refs we hold are valid.
             let entry : &Entry<T> = unsafe { &**entry };
             entry.collection.set(None);
         }
@@ -103,6 +104,7 @@ impl<T> Drop for Entry<T> {
     fn drop(&mut self) {
         // Go through collection to remove this entry.
         if let Some(collection) = self.collection.get() {
+            // Safety: the `Drop` impl of `Collection` guarantees that the weak ref we hold is valid.
             let collection : &Collection<T> = unsafe { &*collection };
             collection.objects.borrow_mut().retain(|ptr| ptr.addr() != self.addr());
         }
@@ -143,13 +145,14 @@ impl Drop for B<'_> {
 
 Note also that the reason for the linked list types being `!Unpin` is that swapping out two `Entry`s
 would create an inconsistency in the reference cycle. In some way the "cause" of `Entry: !Unpin` is
-the contained `&weak Collection`; similarly the "cause" of `B: !Unpin` is the consistency between
-the two `&AtomicBool`.
+the contained `&weak Collection`, so when `entry.collection.is_none()` we could safely move the
+entry around. Similarly the reason that `B` is `!Unpin` is to ensure we don't change the
+`&AtomicBool` while `B` is weakly borrowed.
 
 So here we go, I personally found this enlightening: `Pin<P>` is basically a way to manage a particular
 kind of untracked static borrow in a safe API. When I receive a `Pin<P>` I can store the attached
 weak reference wherever I want, and holding such a weak reference limits what can happen to the
-place just enough that we can keep things consistent.
+place just enough that we can keep things consistent and safe.
 
 I am by no means a `Pin` expert, this is potentially incorrect in subtle ways, please let me know if
 so. And let me know if you found this mental model helpful!

@@ -54,9 +54,17 @@ struct Struct { ... }
 #[semver_compatible(implements(const Destruct))]
 struct Struct { ... }
 
-// Prevents downstream crates from implementing this trait. Basically builtin "sealed traits".
-// This isn't a semver kind of thing so I picked another keyword but I
-// don't like it much.
+struct Struct {
+    // Forbid mutation by downstream crates. See also
+    // https://rust-lang.github.io/rfcs/3323-restrictions.html .
+    // This isn't a semver kind of thing so I picked another keyword but I don't like it much.
+    #[api(forbid(downstream, write)]
+    pub x: Data,
+}
+
+// Prevents downstream crates from implementing this trait. Basically builtin "sealed traits", see
+// also https://rust-lang.github.io/rfcs/3323-restrictions.html .
+// This isn't a semver kind of thing so I picked another keyword but I don't like it much.
 #[api(forbid(downstream, impl)]
 trait Trait { ... }
 

@@ -161,11 +161,7 @@ Moreover, each smart pointer becomes its own kind of borrow. So one could write 
 trait HasPlace {
     /// The type of the contained value.
     type Target: ?Sized;
-    
-    /// Retreive the metadata of the contained value. See the "metadata
-    /// handling" section.
-    unsafe fn metadata(*const self) -> <Self::Target as Pointee>::Metadata;
-    
+
     /// Tells the borrow-checker what other simultaneous and subsequent
     /// borrows are allowed.
     const BORROW_KIND: BorrowKind;
@@ -205,12 +201,8 @@ enum BorrowKind {
 trait Projection: Copy {
     type Source: ?Sized;
     type Target: ?Sized;
-
-    // This isn't a constant, see section on "Indexing Projections" for why.
-    fn offset(self) -> usize;
-    // Needed when the target is unsized. See the "metadata
-    // handling" section.
-    fn metadata(self) -> <Self::Target as Pointee>::Metadata;
+    // Apply the projection to a pointer.
+    unsafe fn do_project(self, *mut Self::Source) -> *mut Self::Target;
 }
 
 /// Allows naming the type of a projection. All projections are supported:
@@ -526,13 +518,6 @@ For our purposes, this means that for truly first-class support, we need indexin
 Big design space, see
 [discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Naming.20the.20type.20for.20nested.20projections/with/553898757).
 Also made much simpler if we do field-by-field.
-
-### Metadata handling
-
-Unsized types have an additional complication: we need the metadata to create a pointer to them. For most cases, a reborrow just keeps the same metadata around, e.g. from `&mut ManuallyDrop<dyn Trait>` to `&mut dyn Trait`.
-
-For range indexing (`&x[i..j]`) however, the new metadata is supplied by the user. That's why `Projection` has a `metadata` method. The `HasPlace::metadata` method is then used to get the initial metadata when relevant, e.g. get the length out of a `Box<[T]>`.
-
 
 ## Questions and musings
 

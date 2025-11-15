@@ -3,6 +3,7 @@ title: Nadri's musings
 
 plugins:
   - jekyll-remote-theme
+  - jekyll-feed
 
 # Use upstream minima instead of GitHub Page's outdated version.
 remote_theme: jekyll/minima

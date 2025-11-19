@@ -12,7 +12,8 @@ What would it take to make custom smart pointers as first-class as possible in R
 These reflections originated on
 [Zulip](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Field.20projections.20and.20places/with/553831123)
 and went over a few iterations. This is a snapshot of the proposal; it may keep evolving in this
-[HackMD document](https://hackmd.io/N0sjLdl1S6C58UddR7Po5g).
+[HackMD document](https://hackmd.io/N0sjLdl1S6C58UddR7Po5g). I"ve also made a repo to play with the
+proposed traits [here](https://github.com/Nadrieril/place-projections-demo).
 
 ## The case for a solution based on places
 
@@ -102,7 +103,7 @@ where
     fn project(*const self, p: P) -> Target;
 }
 
-// e.g., more or less:
+// e.g., more or less (see below for a real proposal):
 impl<T, U, P: Projection> Project<P, &U> for MyRefMut<'_, T> {...}
 impl<T, U, P: Projection> Project<P, &mut U> for MyRefMut<'_, T> {...}
 impl<T, U, P: Projection> Project<P, MyRefMut<'_, U>> for MyRefMut<'_, T> {...}
@@ -484,9 +485,13 @@ Things we want to project include non-indirected containers like `Cell`, `MaybeU
 
 The difficulty is that they're usually combined with smart pointers. So `MyPtr<MaybeUninit<Foo>>` can project to `MyPtr<MaybeUninit<Field>>`. I think the right way to think about this one is that `MaybeUninit<Foo>` morally has a field of type `MaybeUninit<Field>` (rather than treating `MyPtr<MaybeUninit<_>>` as a new smart pointer).
 
-At the same time `MaybeUninit: HasPlace` makes perfect sense. There might be more there. I think the Field Projection people had a lot of thoughts about that.
+At the same time `MaybeUninit: HasPlace` seems to make perfect sense. There might be more there. The
+[Field projection v2 RFC](https://github.com/rust-lang/rfcs/pull/3735) has good thoughts on the
+topic; they also propose we treat these with a different concept than we treat "smart pointer"
+things.
 
-Syntactically I'm fond of `MaybeUninit` etc working as an operation from places to places: `&mut MaybeUninit(*x)`. Maybe it's `IsPlace` then.
+Syntactically I'm fond of `MaybeUninit` etc working as an operation from places to places: `&mut
+@MaybeUninit(*x)`. Maybe it's `IsPlace` then. Big design space there.
 
 ### Projections include indexing
 
@@ -550,7 +555,7 @@ impl<P> PlaceBorrow<'a, P, &'a P::Target> for WrappedData
   where P: Projection<Target=Source>
 {
     const SAFE: bool = true;
-    const BORROW_KIND: BorrowKind = BorrowKind::Owned;
+    const BORROW_KIND: BorrowKind = BorrowKind::Shared;
     // Safety: ...
     unsafe fn borrow(*const self, p: P) -> &'a P::Target {
         // Safety: ...

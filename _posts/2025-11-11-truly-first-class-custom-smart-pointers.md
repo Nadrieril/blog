@@ -12,7 +12,7 @@ What would it take to make custom smart pointers as first-class as possible in R
 These reflections originated on
 [Zulip](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Field.20projections.20and.20places/with/553831123)
 and went over a few iterations. This is a snapshot of the proposal; it may keep evolving in this
-[HackMD document](https://hackmd.io/N0sjLdl1S6C58UddR7Po5g). I"ve also made a repo to play with the
+[HackMD document](https://hackmd.io/N0sjLdl1S6C58UddR7Po5g). I've also made a repo to play with the
 proposed traits [here](https://github.com/Nadrieril/place-projections-demo).
 
 ## The case for a solution based on places
@@ -87,9 +87,10 @@ let b_ptr: MyMutPtr<B> = bar_ptr~b;
 Which is UB under the currently proposed aliasing models, see [this
 discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Multi-level.20projections/near/555233842).
 
-This is only a problem because we use `&mut` references;
+This is only a problem because we use `&mut` references though;
 we could forbid projections of types like this,
 or find workarounds using intermediate `*mut` pointers.
+
 I propose instead: projection should work all at once;
 we should not create intermediate pointer values when doing nested projections.
 

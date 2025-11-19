@@ -48,30 +48,52 @@ let b = &mut (*deref_x).b;
 
 The conclusion I draw is: the meaning of `&mut x.a` should change/be extended.
 
-### Let's project one field at a time
+### Projecting one field at a time is tricky
 
-> Note: I initially imagined multi-field projections because I feared aliasing issues. After
-[discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Multi-level.20projections/near/554567377),
-does seem that field-by-field borrows can't work if the smart pointers contain `&mut`/`&`
-references. But we could imagine intermediate projections that contain raw pointers, so the question
-isn't settled.
+The basic desire of the Field Projections initiative is some way to go from a `MyPtr<Foo>` to
+a `MyPtr<Field>` that points to a field of the original `Foo`.
 
-> This section used to be "we can't project one field at a time" but I no longer think that.
-Instead, take this as a proposal: I propose we project all at once instead of field-by-field for now.
+There is an important question: can we project one field at a time? I.e. can `project!(x, field.a)`
+be implemented as `project!(project!(x, field), a)`?
 
-The basic desire of the Field Projections initiative is some way to go from `MyPtr<Foo>` to a `MyPtr<Field>` that points to a field of the original `Foo`.
+Possibly, but we have to be careful. Take the following example (using the `~` notation that is
+under consideration for field projections):
+```rust
+#[make_projectable_somehow]
+pub struct MyMutPtr<'a, T>(&'a mut T);
 
-There is an important question: can we project one field at a time? I.e. can `project!(x, field.a)` be implemented as `project!(project!(x, field), a)`?
+let my_ptr: MyMutPtr<Foo> = ...;
+let a_ptr: MyMutPtr<A> = my_ptr~bar~a;
+*a_ptr = ...;
+let b_ptr: MyMutPtr<B> = my_ptr~bar~b;
+*a_ptr = ...;
+*b_ptr = ...;
+```
+in the obvious one-field-at-a-time desugaring, we'd get:
+```rust
+#[make_projectable_somehow]
+pub struct MyMutPtr<'a, T>(&'a mut T);
 
-Possibly, but we have to be careful. See
-[discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Multi-level.20projections/near/555233842)
-for example: for a type like `struct MyMutPtr<'a, T>(&'a mut T)`, we can't freely project
-field-by-field and get disjoint borrows as this could create UB. We could use intermediate `*mut`
-pointers though.
+let my_ptr: MyMutPtr<Foo> = ...;
+let bar_ptr: MyMutPtr<A> = my_ptr~bar;
+let a_ptr: MyMutPtr<A> = bar_ptr~a;
+*a_ptr = ...; // this write activates the contained `&mut A`
+let bar_ptr: MyMutPtr<A> = my_ptr~bar; // this reborrow invalidates `a_ptr`
+let b_ptr: MyMutPtr<B> = bar_ptr~b;
+*a_ptr = ...; // UB
+*b_ptr = ...;
+```
 
-In the meantime however, I propose this hypothesis: projection should work all at once; we should
-not create intermediate pointer values when doing nested projections. We discuss the field-by-field
-case
+Which is UB under the currently proposed aliasing models, see [this
+discussion](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Multi-level.20projections/near/555233842).
+
+This is only a problem because we use `&mut` references;
+we could forbid projections of types like this,
+or find workarounds using intermediate `*mut` pointers.
+I propose instead: projection should work all at once;
+we should not create intermediate pointer values when doing nested projections.
+
+We discuss the field-by-field case in more depth
 [here](https://rust-lang.zulipchat.com/#narrow/channel/522311-t-lang.2Fcustom-refs/topic/Field-by-field.20projections.20in.20the.20place.20model/with/554924231).
 
 ### Autoref

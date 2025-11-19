@@ -161,19 +161,32 @@ Moreover, each smart pointer becomes its own kind of borrow. So one could write 
 trait HasPlace {
     /// The type of the contained value.
     type Target: ?Sized;
-
-    /// Tells the borrow-checker what other simultaneous and subsequent
-    /// borrows are allowed.
-    const BORROW_KIND: BorrowKind;
 }
+
+/// Describes the location of a subvalue of type `Target` within a value of type
+/// `Source`.
+trait Projection: Copy {
+    type Source: ?Sized;
+    type Target: ?Sized;
+    // Apply the projection to a pointer.
+    unsafe fn do_project(self, *mut Self::Source) -> *mut Self::Target;
+}
+
+/// Allows naming the type of a projection. All projections are supported:
+/// struct field, union field, enum variant field, indexing.
+/// E.g. `projection_type((MyStruct.field[_].other_field as Some).0): Projection`
+macro projection_type! { ... }
+/// Alias for `projection_type` that doesn't allow fields. Represents the noop
+/// projection that maps a type to itself.
+macro empty_projection! { ... }
 
 /// Tells the borrow-checker what other simultaneous and subsequent borrows
 /// of the same place are allowed. E.g. if `let y = @MyMutPtr x.a;` and another
 /// borrow of `x.a` is taken, `y` can no longer be used and must be dropped.
 ///
-/// Note that the question of "which borrows can be taken from inside this
+/// Note that the question of "which borrows can be taken from inside a given
 /// place" is governed by `PlaceBorrow`; there's no borrowck-enforced limitation
-/// that e.G. a `Unique` borrow can't be derived from a `Shared` place.
+/// that e.g. a `Unique` borrow can't be derived from a `Shared` one.
 //
 // TODO: does that all make sense without lifetimes?
 // TODO: what about borrows to parent/child places? `&x.a.b` and `&x.a` can
@@ -196,24 +209,6 @@ enum BorrowKind {
     // maybe other things?
 }
 
-/// Describes the location of a subvalue of type `Target` within a value of type
-/// `Source`.
-trait Projection: Copy {
-    type Source: ?Sized;
-    type Target: ?Sized;
-    // Apply the projection to a pointer.
-    unsafe fn do_project(self, *mut Self::Source) -> *mut Self::Target;
-}
-
-/// Allows naming the type of a projection. All projections are supported:
-/// struct field, union field, enum variant field, indexing.
-/// E.g. `projection_type((MyStruct.field[_].other_field as Some).0): Projection`
-macro projection_type! { ... }
-/// Alias for `projection_type` that doesn't allow fields. Represents the noop
-/// projection that maps a type to itself.
-macro empty_projection! { ... }
-
-
 /// "Borrow" a subplace of a custom place as the chosen place container `X`.
 ///
 /// The syntax for this is `@SmartPtr <place_expr>` (or, for the built-in
@@ -233,10 +228,17 @@ where
   Self: HasPlace<P::Source>,
   X: HasPlace<P::Target>
 {
-  /// Safety: `p` must be a valid projection for the `**self` place for the
-  /// duration of `'a`. This includes respecting the aliasing constraints
-  /// described by `X::BORROW_KIND`.
-  unsafe fn borrow(*const self, p: P) -> X;
+    /// Whether the operation is safe.
+    const SAFE: bool;
+
+    /// Tells the borrow-checker what other simultaneous and subsequent
+    /// borrows are allowed.
+    const BORROW_KIND: BorrowKind;
+
+    /// Safety: `p` must be a valid projection for the `**self` place for the
+    /// duration of `'a`. This includes respecting the aliasing constraints
+    /// described by `X::BORROW_KIND`.
+    unsafe fn borrow(*const self, p: P) -> X;
 }
 
 
@@ -543,13 +545,12 @@ struct WrappedData {
 
 impl HasPlace for WrappedData {
     type Target = Data;
-    const BORROW_KIND: BorrowKind = BorrowKind::Owned;
-    fn metadata(*const self) {} // `Data` is sized
 }
 impl<P> PlaceBorrow<'a, P, &'a P::Target> for WrappedData
   where P: Projection<Target=Source>
 {
     const SAFE: bool = true;
+    const BORROW_KIND: BorrowKind = BorrowKind::Owned;
     // Safety: ...
     unsafe fn borrow(*const self, p: P) -> &'a P::Target {
         // Safety: ...
@@ -682,14 +683,17 @@ itself.
 ```rust
 struct Own<'a, T>(*const T, PhantomData<&'a T>);
 impl HasPlace for Own<'_, T> {
-  // This means that any reborrow into `Own` is treated like a move out by borrowck,
-  // in the sense that no other access to that place is allowed.
-  const BORROW_KIND = BorrowKind::Owned;
   ..
 }
 
 // Borrowck gives us this `'a` and will use it to know how long the borrow lasts.
-impl PlaceBorrow<'a, P, Own<'a, P::Target>> for Box<P::Source> { ... }
+impl PlaceBorrow<'a, P, Own<'a, P::Target>> for Box<P::Source> {
+    // This means that any reborrow into `Own` is treated like a move out by borrowck,
+    // in the sense that no other access to that place is allowed until another value
+    // is written to it.
+    const BORROW_KIND: BorrowKind = BorrowKind::Owned;
+    ..
+}
 impl PlaceRead<..> for Own<..> { .. }
 impl PlaceMove<..> for Own<..> { .. }
 

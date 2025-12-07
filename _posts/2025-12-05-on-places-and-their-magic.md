@@ -1,6 +1,6 @@
 ---
 title: "The Implicit Magic of Places"
-date: 2025-12-05 20:32 +0100
+date: 2025-12-06 20:32 +0100
 ---
 
 Josh Triplett and I are trying to revive [postfix

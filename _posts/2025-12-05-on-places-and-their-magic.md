@@ -174,11 +174,11 @@ involves a mix of autoderef and autoref.
 
 ## Closure capture
 
-Closures add a layer of magic to places: if you mention inside a closure a place that comes from
-outside the closure, the place will automatically get carried around along with the closure. We say
-the place is "captured", and this means either that we place-to-value coerce and store the resulting
-value inside the closure, or that we store a `&` or `&mut` borrow of the place inside the closure.
-Much like for autoderef, the way we capture `x` depends on how the place is used.
+Closures add another layer of magic to places: if you mention inside a closure a place that comes
+from outside the closure, the place will automatically get carried around along with the closure. We
+say the place is "captured", and this means either that we place-to-value coerce and store the
+resulting value inside the closure, or that we store a `&` or `&mut` borrow of the place inside the
+closure. Much like for autoderef, the way we capture `x` depends on how the place is used.
 
 For example, this:
 ```rust

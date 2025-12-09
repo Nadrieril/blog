@@ -1,5 +1,5 @@
 ---
-title: "The Implicit Magic of Places"
+title: "The Implicit Magics of Places"
 date: 2025-12-06 20:32 +0100
 ---
 

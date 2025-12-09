@@ -174,24 +174,23 @@ involves a mix of autoderef and autoref.
 
 ## Closure capture
 
-It's a bit of an outlier in this list but I thought I'd mention it: closure capture.
-It is also centrally about places.
+Closures add a layer of magic to places: if you mention inside a closure a place that comes from
+outside the closure, the place will automatically get carried around along with the closure. We say
+the place is "captured", and this means either that we place-to-value coerce and store the resulting
+value inside the closure, or that we store a `&` or `&mut` borrow of the place inside the closure.
+Much like for autoderef, the way we capture `x` depends on how the place is used.
 
-The short version is:
-if a place is mentioned in a closure but comes from its environment, the closure will "capture" it.
-E.g. if a closure contains `x.field.method()` where `x` is defined outside the closure, it'll try to
-capture `x.field`.
-"Capturing" means storing inside the closure object either a borrow to the place or the value it
-contains.
-Much like for autoderef, the way we capture `x` depends on how the place is
-used: we capture by-value, by-ref or by-mutable-ref depending on usage.
-
+For example, this:
 ```rust
 let x: Foo = ...;
 let f = || {
     x.field.is_some()
 };
-// desugars to:
+```
+causes `x.field` to be captured, in this case as a shared borrow. The resulting code is equivalent
+to the following, where we make the closure object explicit:
+
+```rust
 struct Closure<'a> {
     p: &'a Field,
 }

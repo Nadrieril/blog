@@ -152,7 +152,7 @@ let _ = {
 // desugars to:
 let _ = {
     x = Some(42);
-    tmp = x;
+    let mut tmp = x; // copies `x` :(
     (&mut tmp).take() // not what I wanted :(
 };
 ```

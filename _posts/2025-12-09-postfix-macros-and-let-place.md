@@ -125,8 +125,10 @@ match <expr> {
 This would have the effect I propose above: any side-effects are evaluated early, and then we can do
 what we want with the resulting place.
 
-One of my litmus tests of expressivity for postfix macros is this `write!` macro, which ends up
-working pretty straighforwardly:
+> EDIT: This next paragraph was changed because I initially thought that macro would work :')
+
+One of my litmus tests of expressivity for postfix macros is this `write!` macro, which ~~ends up
+working pretty straighforwardly~~ turns out not to work so well:
 ```rust
 macro_rules! write {
     ($self:self, $val:expr) => ({
@@ -141,13 +143,20 @@ let _ = match x {
     place p => write!(p, Some(42)).take(),
 };
 // desugars to:
-let _ = write!(x, Some(42)).take();
+let _ = { write!(x, Some(42)) }.take(); // the match body forces a place-to-value :(
 // desugars to:
 let _ = {
     x = Some(42);
-    (&mut x).take()
+    (&mut {x}).take()
+};
+// desugars to:
+let _ = {
+    x = Some(42);
+    tmp = x;
+    (&mut tmp).take() // not what I wanted :(
 };
 ```
+Seems like a `match` isn't the right thing. I'm not sure how to get the right temporary scopes then.
 
 ## `let place` and custom autoderef
 

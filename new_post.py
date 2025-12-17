@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-import os
-import subprocess
 from datetime import datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+DRAFTS_DIR = ROOT / "_drafts"
+DRAFTS_DIR.mkdir(exist_ok=True)
 
 title = input("Enter post title: ")
 if not title:
@@ -9,10 +12,9 @@ if not title:
 
 # Generate filename
 now = datetime.now().astimezone()
-date_str = now.strftime("%Y-%m-%d")
 datetime_str = now.strftime("%Y-%m-%d %H:%M %z")
 slug = title.lower().replace(" ", "-").replace("'", "").replace("`", "")
-filename = f"_posts/{date_str}-{slug}.md"
+filename = DRAFTS_DIR / f"{slug}.md"
 
 # Create the file
 frontmatter = f"""---
@@ -24,14 +26,4 @@ date: {datetime_str}
 with open(filename, "w") as f:
     f.write(frontmatter)
 
-# Open with nvim
-subprocess.run(["nvim", filename])
-
-# Check if file was modified
-with open(filename, "r") as f:
-    content = f.read()
-if content.strip() == frontmatter.strip():
-    os.remove(filename)
-    print(f"Deleted: {filename} (no changes made)")
-else:
-    print(f"Created: {filename}")
+print(f"Created: {filename.relative_to(ROOT)}")

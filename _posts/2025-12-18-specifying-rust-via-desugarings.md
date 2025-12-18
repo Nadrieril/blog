@@ -21,7 +21,8 @@ The question then is how we get from a Rust program to its MIR. Today a lot of t
 explain; the idea of this blog post is that we would like to explain it as a desugaring, into code
 that is also valid Rust yet precise enough that the mapping from it to MIR is obvious[^2].
 
-What features are we missing to make this desugaring possible? Here are some ideas.
+What features are we missing to make this desugaring possible? Here are some ideas. (Disclaimer:
+none of these are my ideas[^8], but instead things I've seen floating around in the Rust ideaspace).
 
 ## Identifier hygiene
 
@@ -319,3 +320,4 @@ expressed in plain Rust. Please share your ideas!
 [^5]: I found a [`cargo inspect`](https://github.com/mre/cargo-inspect) tool that does some of that! From the other end, my job project [Charon](https://github.com/AeneasVerif/charon) takes MIR and reconstructs that kind of simple code, for purposes of analysis.
 [^6]: It's not that sophisticated actually, e.g. on the second example below it could figure out that matching on `val.1` first produces better code. But we don't do that kind of reasoning yet.
 [^7]: Arbitrary [reducible](https://en.wikipedia.org/wiki/Control-flow_graph#Reducibility) control-flow I should say.
+[^8]: Except the match-`continue` statement, that one I came up with on my own :3

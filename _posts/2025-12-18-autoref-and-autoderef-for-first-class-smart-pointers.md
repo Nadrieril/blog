@@ -186,6 +186,18 @@ struct W<T> {
     precedence over the virtual field. If we wanted to access the `value` field of `Field`, we'd
     have to write `@@W (*w).field.value`.
 
+6. `x: &Box<Arc<Struct>>`, `impl Field { fn method(self: ArcRef<Self>) }`, `e := x.field.method()`
+
+    We get `e = Field::method(@ArcRef (***x).field)`. The final desugaring looks like:
+    ```rust
+    let tmp: &raw const LocalPlace<&Box<Arc<Struct>>> = &raw const @@LocalPlace x;
+    let tmp: &raw const &Box<Arc<Struct>> = <LocalPlace<_> as PlaceDeref<_>>::deref(tmp, trivial_proj_val!(&Box<Arc<Struct>>));
+    let tmp: &raw const Box<Arc<Struct>> = <&_ as PlaceDeref<_>>::deref(tmp, trivial_proj_val!(Box<Arc<Struct>>));
+    let tmp: &raw const Arc<Struct> = <Box<_> as PlaceDeref<_>>::deref(tmp, trivial_proj_val!(Arc<Struct));
+    let arc_ref: ArcRef<Field> = <PlaceBorrow<'_, _, ArcRef<_>>>::borrow(tmp, proj_val!(Struct.field));
+    Field::method(arc_ref)
+    ```
+
 Below are the footnotes, this theme does not distinguish them very clearly:
 
 [`arbitrary_self_types`]: https://rust-lang.github.io/rfcs//3519-arbitrary-self-types-v2.html

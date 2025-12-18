@@ -7,11 +7,9 @@ date: 2025-12-18 02:18 +0100
 goal](https://github.com/rust-lang/rust-project-goals/issues/390). Thanks to Benno Lossin and
 everyone involved for the very fruitful discussions!
 
-In a [my first post on this
-blog](https://nadrieril.github.io/blog/2025/11/11/truly-first-class-custom-smart-pointers.html)
-I outlined a solution for making custom smart pointers as well integrated into the language as
-references are today. I had left the exact rules for autoref and autoderef unspecified; this blog
-post is my attempt to write them down precisely.
+In a [my first post on this blog][original_post] I outlined a solution for making custom smart pointers as well
+integrated into the language as references are today. I had left the exact rules for autoref and
+autoderef unspecified; this blog post is my attempt to write them down precisely.
 
 The basic tenets I have for the whole feature are:
 - Expressions have a type that doesn't depend on their context.
@@ -79,15 +77,11 @@ Examples, assuming `Struct` has a field `field: Field`:
 - `p: MaybeUninit<MaybeUninit<Struct>>`: `p.field` desugars to `@@MaybeUninit @@MaybeUninit
   (**p).field` with type `MaybeUninit<MaybeUninit<Field>>`;
 - `p: &&&MaybeUninit<Struct>`: `p.field` desugars to `@@MaybeUninit (****p).field` with type `MaybeUninit<Foo>`;
-- `p: MaybeUninit<&Struct>`: `p.field` desugars to `(**p).field` with type `Foo`[^4];
+- `p: MaybeUninit<&Struct>`: `p.field` desugars to `(**p).field` with type `Foo`[^1];
 - `p: MaybeUninit<[u8]>`: `p[42]` desugars to `@@MaybeUninit (*p)[42]` with type `MaybeUninit<u8>`.
 
 Note that because we resolve place expressions one operation at a time, we ensure that e.g. `p.a.b`
 is always the same as `(p.a).b`.
-
-[^1]: I haven't talked about `PlaceWrap` yet, Benno gave a quick mention [here](https://github.com/rust-lang/rust-project-goals/issues/390#issuecomment-3659055067).
-[^2]: I'd really like there to be a syntax for this, let's say `@@Wrapper <place>`, which 1. only works for transparent structs and 2. yields a place. In particular this can happen inside a borrow, e.g. `&@@Wrapper p`. With that syntax, the desugaring here would look like `@@Wrapper1 @@Wrapper2 (**x).field`.
-[^4]: This place looks like it should be illegal but there may be wrappers for which it is usable. For `MaybeUninit` this will just be unusable because `MaybeUninit` does not implement `PlaceDeref`.
 
 ## Computing the type of borrows
 
@@ -105,7 +99,7 @@ either a local or a deref. Let `U` be the type of `q`. Then `@Ptr p` desugars to
 _, Ptr>>::borrow(get!(q), proj_val!(U.proj))`, where `get!` is defined as:
 - if `q` is a local, `get!(q)` is `&raw const @@LocalPlace q`;
 - otherwise `q` is a deref which we can write `*(r.proj2)`, and we can get the right pointer using
-  `PlaceDeref::deref`. This applies recursively if `r` itself contains a deref, etc.
+  `PlaceDeref::deref`[^2]. This applies recursively if `r` itself contains a deref, etc.
 
 ## Method autoref
 
@@ -140,7 +134,8 @@ I might be missing, the core ideas I'm trying to convey are this:
 ## Putting it all together
 
 Let's go through a bunch of examples. In what follows `e` is the expression of interest that we want
-to desugar and typecheck. We also assume:
+to desugar and typecheck. We also assume the obvious place operations on standard library types, as
+well as:
 ```rust
 struct Struct {
     field: Field,
@@ -174,10 +169,10 @@ struct W<T> {
 
     We get `e = Struct::method(&*x)`.
 
-4. `x: CppRef<Struct>`, `impl Field { fn method(self: &CppRef<Self>) }`, `e := x.field.method()`
+4. `x: &mut CppRef<Struct>`, `impl Field { fn method(self: &CppRef<Self>) }`, `e := x.field.method()`
 
     I made this an error, but in theory we could desugar this to `Field::method(&(@CppRef
-    (*x).field))`, i.e. create a temporary `CppRef` and borrow that. We'll pick whatever's
+    (**x).field))`, i.e. create a temporary `CppRef` and borrow that. We'll pick whatever's
     consistent with the rest of Rust I guess.
 
 5. `x: W<Struct>`, `e := w.field.value`
@@ -198,15 +193,23 @@ struct W<T> {
     Field::method(arc_ref)
     ```
 
+    Note how only the last deref (the one of `Arc`) is involved in the reborrow. The rest are just
+    `PlaceDeref`ed through.
+
 7. `x: Arc<Box<Struct>>`, `e := @ArcRef x.field`
 
     That's an error. We get `e = @ArcRef (**x).field`, which uses `Arc as PlaceDeref` then `Box as
     PlaceBorrow<'_, _, ArcRef<_>>` which doesn't exist. This is unfortunate because in principle we
-    can make this `ArcRef<Field>`. But using the feature as designed, this would need to use
-    `Arc<Box<Struct>> as PlaceBorrow<'_, P, ArcRef<Field>>` where `P` includes a deref. Projections
-    are just an offset in our model currently, so that's not allowed.
+    can make this `ArcRef<Field>`. But this would need something like `Arc<Box<Struct>> as
+    PlaceBorrow<'_, P, ArcRef<Field>>` where `P` includes a deref. Projections are just an offset in
+    our model currently, so that's not allowed[^5].
 
 Below are the footnotes, this theme does not distinguish them very clearly:
 
+[original_post]: https://nadrieril.github.io/blog/2025/11/11/truly-first-class-custom-smart-pointers.html
 [`arbitrary_self_types`]: https://rust-lang.github.io/rfcs//3519-arbitrary-self-types-v2.html
+[PlaceDeref]: https://github.com/Nadrieril/place-projections-demo/blob/a5a73414dec04370b15733b6eef6cb4215ddff6d/src/place_ops.rs#L66-L75
+[^1]: This place looks like it should be illegal but there may be wrappers for which it is usable. For `MaybeUninit` this will just be unusable because `MaybeUninit` does not implement `PlaceDeref`.
+[^2]: I mentioned the idea of `PlaceDeref` briefly in my [original post][original_post] but hadn't fleshed it out. It's just a `&raw const`-reborrow meant to only be used for nested derefs. See its proper definition [here][PlaceDeref].
 [^3]: I'm talking about the `Receiver` trait from the [`arbitrary_self_types`] feature.
+[^5]: Also this would make inference more complicated because we'd have to try `PlaceBorrow` for each of the pointers involved, instead of having a deterministic choice like we do today.

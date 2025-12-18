@@ -115,6 +115,31 @@ unsafe {
 
 I wonder if we could allow this in safe code somehow.
 
+## Naming the return place
+
+Not strictly necessary but fun: the expression `return x` mixes two things: a control-flow construct
+and setting the return value. We could separate the two by making the return place nameable:
+```rust
+fn foo() -> u32 {
+    if check() {
+        return 42;
+    }
+    0
+}
+// would become:
+fn foo() -> u32 {
+    if check() {
+        return#place = 42;
+        return;
+    }
+    return#place = 0;
+}
+```
+
+No idea of a good syntax here. The way I imagine this working is that the return place starts out
+uninitialized, like `let x;`, and a plain `return` is allowed if borrowck determines that the return
+place has been initialized.
+
 ## Explicit pointer metadata and explicit vtables
 
 Pointer metadata for unsized types is handled invisibly today:

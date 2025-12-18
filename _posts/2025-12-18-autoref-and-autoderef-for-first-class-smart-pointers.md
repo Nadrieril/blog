@@ -18,6 +18,37 @@ The basic tenets I have for the whole feature are:
 - To understand what operation (e.g. method call) is being done on an expression, one only needs to know
   the type of that expression.
 
+## `PlaceWrap` and non-indirected place operations
+
+One of the recent ideas we've added to the proposal is this trait[^5], which we'll need to explain
+the desugarings:
+```rust
+/// If `X: PlaceWrap` and `X::Target` has a field `field`, then `X` itself acquires a virtual field
+/// named `field` as well. That field has type `<X as
+/// PlaceWrap<proj_ty!(X::Target.field)>>::Wrapped`, and `WrappedProj` is the
+/// projection used when we refer to that field.
+pub unsafe trait PlaceWrap<P: Projection<Source = Self::Target>>: HasPlace {
+    /// The type of the virtual field. This is necessarily a transparent wrapper around `P::Target`.
+    type Wrapped: HasPlace<Target = P::Target>;
+    type WrappedProj: Projection<Source = Self, Target = Self::Wrapped>;
+    fn wrap_proj(p: &P) -> Self::WrappedProj;
+}
+```
+
+This is implemented for "non-indirected containers" such as `MaybeUninit`, `RefCell`, `Cell`, etc.
+What it does is that if `Struct` has a field `field: Field`, then `MaybeUninit<Struct>` has
+a virtual field `field: MaybeUninit<Field>`.
+
+In the next section I explain how that interacts with the existing place operations, and at the end
+we'll see examples of how they work together for very nice expressivity.
+
+To explain the computations I propose a strawman syntax `@@Type p` which is allowed iff `Type` is
+a transparent wrapper around the type of `p`. This expression is a place expression too, it behaves
+like basically a transmute of the target without doing anything else. In particular this is how
+`PlaceWrap` operates: if `x: MaybeUninit<Struct>`, `x.field` desugars to `@@MaybeUninit (*x).field`.
+
+[^5]: Thanks to Benno for formulating it like this! Compared to [our official version](https://github.com/rust-lang/rust-project-goals/issues/390#issuecomment-3659055067) I made the `Wrapped` type separate because this makes explanations easier than using `WrappedProj::Target` all the time.
+
 ## Computing the type of a place
 
 Every place expression starts with a local or a temporary, with a known type. We then apply one or
@@ -31,29 +62,32 @@ then `*p: T::Target`.
 
 Field access is the tricky one; I propose the following. Let `p` be a place expression of type `T`.
 - If `T` has a field `field: F`, `p.field: F` and we're done;
-- If `T: HasPlace`, we first try place wrapping[^1]: we descend through `T::Target::Target::etc`
-  until we find a type that has a field `field: F`. If then all the intermediate `T::Target::etc`
-  implement `PlaceWrap<the_right_thing>`, `p.field` gets the type `<T as
-  PlaceWrap<the_right_thing>>::WrappedProjection::Output`[^2].
-- If `T: HasPlace`, and the above didn't work, `p.field` desugars to `(*p).field` and we recurse on
-  resolving this.
+- If `T: !HasPlace`, error.
+- If `T: HasPlace`, we first descend through `T::Target::Target::etc` until we find a type that has
+  a field `field: F`. We get the intermediate expression `tmp_place := (****p).field: F` with the appropriate
+  number of derefs.
+- We then "go back up" as long as the intermediate `T::Target::etc` implements `PlaceWrap<the_right_thing>`.
+  Every time we go back up in such a way, we wrap our target place in `tmp_place := @@Wrapped tmp_place`.
+- The first time we can't `PlaceWrap`, we're done.
 - If `T: !HasPlace`, error.
 
 Finally, indexing is easy because we're only talking about built-in indexing here. It's exactly like
 a field access, except that the only types that have such a field are `[T]` and `[T; N]`.
 
 Examples, assuming `Struct` has a field `field: Field`:
-- `p: MaybeUninit<Struct>`: `p.field: MaybeUninit<Field>`;
-- `p: MaybeUninit<MaybeUninit<Struct>>`: `p.field: MaybeUninit<MaybeUninit<Field>>`;
-- `p: &&&MaybeUninit<Struct>`: `p.field` desugars to `(***p).field: MaybeUninit<Foo>`
-- `p: MaybeUninit<&Struct>`: `p.field` is an error;
-- `p: MaybeUninit<[u8]>`: `p[42]: MaybeUninit<u8>`.
+- `p: MaybeUninit<Struct>`: `p.field` desugars to `@@MaybeUninit (*p).field` with type `MaybeUninit<Field>`;
+- `p: MaybeUninit<MaybeUninit<Struct>>`: `p.field` desugars to `@@MaybeUninit @@MaybeUninit
+  (**p).field` with type `MaybeUninit<MaybeUninit<Field>>`;
+- `p: &&&MaybeUninit<Struct>`: `p.field` desugars to `@@MaybeUninit (****p).field` with type `MaybeUninit<Foo>`;
+- `p: MaybeUninit<&Struct>`: `p.field` desugars to `(**p).field` with type `Foo`[^4];
+- `p: MaybeUninit<[u8]>`: `p[42]` desugars to `@@MaybeUninit (*p)[42]` with type `MaybeUninit<u8>`.
 
-Because we resolve place expressions one operation at a time, we ensure that e.g. `p.a.b` is always
-the same as `(p.a).b`.
+Note that because we resolve place expressions one operation at a time, we ensure that e.g. `p.a.b`
+is always the same as `(p.a).b`.
 
 [^1]: I haven't talked about `PlaceWrap` yet, Benno gave a quick mention [here](https://github.com/rust-lang/rust-project-goals/issues/390#issuecomment-3659055067).
 [^2]: I'd really like there to be a syntax for this, let's say `@@Wrapper <place>`, which 1. only works for transparent structs and 2. yields a place. In particular this can happen inside a borrow, e.g. `&@@Wrapper p`. With that syntax, the desugaring here would look like `@@Wrapper1 @@Wrapper2 (**x).field`.
+[^4]: This place looks like it should be illegal but there may be wrappers for which it is usable. For `MaybeUninit` this will just be unusable because `MaybeUninit` does not implement `PlaceDeref`.
 
 ## Computing the type of borrows
 
@@ -61,41 +95,41 @@ Let `p` be a place expression of type `T`. The type of `@Ptr p` is easy: it's al
 `Ptr<Something>`, with the guarantee that `Ptr<Something>: HasPlace<Target=T>`. This means `p`
 cannot change type when this happens. There is no extra autoderef or anything at this stage.
 
-To typecheck that the borrow is allowed is a bit more involved. First we identify the outermost
-deref in `p`. If there is one, it's a type `Q: HasPlace`; if there is none we pick `Q:
-LocalPlace<U>` were `U` is the type of the local at the root of the place expression. We then check
-if `Q: PlaceBorrow<'_, P, Ptr<Something>>`, where `P` is the projection that represents the place
-operations that happened between the outermost deref and `p`. These are either field accesses or
-built-in indexing, hence valid projections.
+Figuring out the desugaring (which also checks whether the operation is allowed) is a bit more
+involved. A place expression is made of three things: locals, derefs and projections, where
+"projections" means field accesses, indexing, and either of these mediated by `PlaceWrap`.
 
-If there was more than one deref inside `p`, we also check that each of these dereferenced pointers
-implements `PlaceDeref<P>` where `P` is the projection that follows the deref.
+So our place `p` can always be written as `p = q.proj` where `.proj` represents all the
+non-indirecting projections (including `PlaceWrap` ones), and `q` is a place expression that's
+either a local or a deref. Let `U` be the type of `q`. Then `@Ptr p` desugars to `<PlaceBorrow<'_,
+_, Ptr>>::borrow(get!(q), proj_val!(U.proj))`, where `get!` is defined as:
+- if `q` is a local, `get!(q)` is `&raw const @@LocalPlace q`;
+- otherwise `q` is a deref which we can write `*(r.proj2)`, and we can get the right pointer using
+  `PlaceDeref::deref`. This applies recursively if `r` itself contains a deref, etc.
 
 ## Method autoref
 
-> This is quite naive, I know method resolution is more complicated than that. But hopefully that
-sketch points in the right direction.
-
 In this section, I will assume that `T: Receiver` => `T: HasPlace<Target=<T as
-Receiver>::Target>>`[^3], and ignore `Deref` entirely. To handle `Deref` sanely I'd also like to
-assume that `T: Deref` => `T: HasPlace<Target=<T as Deref>::Target>>`.
+Receiver>::Target>>`[^3] and that `T: Deref` => `T: HasPlace<Target=<T as Deref>::Target>>`.
 
-Let `p` be a place expression of type `T`, and assume we want to typecheck `p.method()`.
+Let `p` be a place expression of type `T`, and assume we want to typecheck `p.method()`. We first
+compute the set `{T, T::Target, T::Target::Target, ..}` as long as the types implement `HasPlace`.
 
-First, look through all the `impl T` and `impl Trait for T` for a method with that name. If there
-are multiple, pick one somehow or raise ambiguity. If the method takes `fn method(self, ..)`
-directly, we desugar to `<..>::method(p)` and we're done.
+For each such type `U`, we look through all the `impl U` and `impl Trait for U` for a method with
+the right name. This gives us a list of "method candidates".
+If there are none, error; if there are several, pick one in some way. Which one to pick is important
+for ergonomics but irrelevant for us now.
 
-Otherwise the method takes `fn method(self: X, ..)` where `X: HasPlace<Target=T>` (by the first
-assumption). We therefore desugar to `<..>::method(@X p)`.
+If the selected method takes `fn method(self, ..)` directly, we desugar to `<..>::method(***p)`
+(with enough derefs to get to the right type) and we're done.
 
-If there was no such method, desugar to `(*p).method()` and continue resolving.
+Otherwise the method takes `fn method(self: X, ..)` where `X: HasPlace` (by the assumption
+on `Receiver` above). If `X::Target` is one of the candidate types above, let `q := ***p` be `p`
+suitably derefed to get to that candidate type; we then desugar to `<..>::method(@X q)`.
+If `X::Target` is not one of the candidate types, we go back and pick another method.
 
-Note: this doesn't support autoref for cases like calling a `fn method(self: &CppRef<Self>)` on `p:
-CppRef<Self>`. A more clever algorithm could do that by checking the methods on `T::Target` without
-derefing so eagerly.
-
-Despite the incompleteness of this draft, the core ideas I'm trying to convey are this:
+This draft is possibly quite naive, I've heard that method resolution is quite tricky. Whatever
+I might be missing, the core ideas I'm trying to convey are this:
 1. We only ever consider the type of the place. The pointer the place came from does not come into
    play until after we've desugared, to check if the borrow was allowed after all;
 2. We search only impl blocks for `T`, `T::Target`, `T::Target::Target`, etc.
@@ -103,7 +137,56 @@ Despite the incompleteness of this draft, the core ideas I'm trying to convey ar
    just attempt to borrow with that pointer. This means e.g. that for `x: CppRef<Struct>` and `fn
    method(self: CppRef<Self>)` on `Field`, `x.field.method()` Just Works.
 
-Hopefully this sketch is clear enough.
+## Putting it all together
+
+Let's go through a bunch of examples. In what follows `e` is the expression of interest that we want
+to desugar and typecheck. We also assume:
+```rust
+struct Struct {
+    field: Field,
+}
+struct Field {
+    value: u32,
+}
+
+// Implements `PlaceWrap`.
+struct W<T> {
+  value: PhantomData<()>,
+  wrapped: T,
+}
+```
+
+1. `p: &mut MaybeUninit<Struct>`, `e := &mut p.field`
+
+    We get `e = &mut @@MaybeUninit (**p).field : &mut MaybeUninit<Field>`, and the two traits involved
+    are `PlaceWrap` for `MaybeUninit` and `PlaceBorrow<P, &mut P::Target>` for `&mut P::Source`. Note
+    how `&mut` is entirely unaware of anything special happening, and how that would work with many
+    nested wrappers.
+
+2. `x: Struct`, `impl Field { fn method(self: CppRef<Self>) }`, `e := x.field.method()`
+
+    We get `e = Field::method(@CppRef x.field)`. Per the section on borrows, `@CppRef x.field`
+    becomes `@CppRef (*@@LocalPlace x).field`, which is allowed iff `LocalPlace<Struct>:
+    PlaceBorrow<P, CppRef<Field>>`. The smart pointer can opt-in to that, and of course they can
+    choose the nature of the resulting borrow (owning, exclusive, shared, etc).
+
+3. `x: &mut CppRef<Struct>`, `impl Struct { fn method(self: &CppRef<Self>) }`, `e := x.method()`
+
+    We get `e = Struct::method(&*x)`.
+
+4. `x: CppRef<Struct>`, `impl Field { fn method(self: &CppRef<Self>) }`, `e := x.field.method()`
+
+    I made this an error, but in theory we could desugar this to `Field::method(&(@CppRef
+    (*x).field))`, i.e. create a temporary `CppRef` and borrow that. We'll pick whatever's
+    consistent with the rest of Rust I guess.
+
+5. `x: W<Struct>`, `e := w.field.value`
+
+    We get `e = (@@W (*x).field).value : PhantomData<()>` because the real field on `W` takes
+    precedence over the virtual field. If we wanted to access the `value` field of `Field`, we'd
+    have to write `@@W (*w).field.value`.
+
+Below are the footnotes, this theme does not distinguish them very clearly:
 
 [`arbitrary_self_types`]: https://rust-lang.github.io/rfcs//3519-arbitrary-self-types-v2.html
 [^3]: I'm talking about the `Receiver` trait from the [`arbitrary_self_types`] feature.

@@ -221,7 +221,7 @@ match val {
 }
 ```
 
-Can we desugar all matches that way? In principle yes because we can do arbitrary control-flow using
+Can we desugar all matches that way? In principle yes because we can do arbitrary[^7] control-flow using
 `break`, but that can get ugly:
 ```rust
 match val {
@@ -293,3 +293,4 @@ expressed in plain Rust. Please share your ideas!
 [^4]: Well, we do put restrictions on match guards, in particular they may not change the scrutinee expression. We'd need to make that restriction explicit as part of the desugaring but I don't know how exactly.
 [^5]: I found a [`cargo inspect`](https://github.com/mre/cargo-inspect) tool that does some of that! From the other end, my job project [Charon](https://github.com/AeneasVerif/charon) takes MIR and reconstructs that kind of simple code, for purposes of analysis.
 [^6]: It's not that sophisticated actually, e.g. on the second example below it could figure out that matching on `val.1` first produces better code. But we don't do that kind of reasoning yet.
+[^7]: Arbitrary [reducible](https://en.wikipedia.org/wiki/Control-flow_graph#Reducibility) control-flow I should say.

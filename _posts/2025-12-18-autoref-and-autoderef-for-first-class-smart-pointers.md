@@ -198,6 +198,14 @@ struct W<T> {
     Field::method(arc_ref)
     ```
 
+7. `x: Arc<Box<Struct>>`, `e := @ArcRef x.field`
+
+    That's an error. We get `e = @ArcRef (**x).field`, which uses `Arc as PlaceDeref` then `Box as
+    PlaceBorrow<'_, _, ArcRef<_>>` which doesn't exist. This is unfortunate because in principle we
+    can make this `ArcRef<Field>`. But using the feature as designed, this would need to use
+    `Arc<Box<Struct>> as PlaceBorrow<'_, P, ArcRef<Field>>` where `P` includes a deref. Projections
+    are just an offset in our model currently, so that's not allowed.
+
 Below are the footnotes, this theme does not distinguish them very clearly:
 
 [`arbitrary_self_types`]: https://rust-lang.github.io/rfcs//3519-arbitrary-self-types-v2.html

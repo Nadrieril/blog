@@ -340,7 +340,7 @@ However there is a funky little corner of Rust semantics where it does track ind
 ```rust
 let slice: &mut [T] = ...;
 if let [a, .., b] = slice
-    && let [_, c, e @ .., d, _] = x {
+    && let [_, c, e @ .., d, _] = slice {
     // a,b,c,d: &mut T
     // e: &mut [T]
 }

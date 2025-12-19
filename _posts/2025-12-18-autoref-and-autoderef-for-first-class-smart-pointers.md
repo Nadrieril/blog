@@ -70,7 +70,9 @@ Field access is the tricky one; I propose the following. Let `p` be a place expr
 - If `T: !HasPlace`, error.
 
 Finally, indexing is easy because we're only talking about built-in indexing here. It's exactly like
-a field access, except that the only types that have such a field are `[T]` and `[T; N]`.
+a field access, where `[T]` and `[T; N]` have one field per index. The tricky part is just that  the
+index is not known at compile-time. That's the reason why `Projection`s don't make the offset
+available as a `const` actually.
 
 Examples, assuming `Struct` has a field `field: Field`:
 - `p: MaybeUninit<Struct>`: `p.field` desugars to `@@MaybeUninit (*p).field` with type `MaybeUninit<Field>`;

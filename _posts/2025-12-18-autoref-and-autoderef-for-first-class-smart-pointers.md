@@ -91,18 +91,6 @@ Let `p` be a place expression of type `T`. The type of `@Ptr p` is easy: it's al
 `Ptr<Something>`, with the guarantee that `Ptr<Something>: HasPlace<Target=T>`. This means `p`
 cannot change type when this happens. There is no extra autoderef or anything at this stage.
 
-Figuring out the desugaring (which also checks whether the operation is allowed) is a bit more
-involved. A place expression is made of three things: locals, derefs and projections, where
-"projections" means field accesses, indexing, and either of these mediated by `PlaceWrap`.
-
-So our place `p` can always be written as `p = q.proj` where `.proj` represents all the
-non-indirecting projections (including `PlaceWrap` ones), and `q` is a place expression that's
-either a local or a deref. Let `U` be the type of `q`. Then `@Ptr p` desugars to `<PlaceBorrow<'_,
-_, Ptr>>::borrow(get!(q), proj_val!(U.proj))`, where `get!` is defined as:
-- if `q` is a local, `get!(q)` is `&raw const @@LocalPlace q`;
-- otherwise `q` is a deref which we can write `*(r.proj2)`, and we can get the right pointer using
-  `PlaceDeref::deref`[^2]. This applies recursively if `r` itself contains a deref, etc.
-
 ## Method autoref
 
 In this section, I will assume that `T: Receiver` => `T: HasPlace<Target=<T as
@@ -132,6 +120,29 @@ I might be missing, the core ideas I'm trying to convey are this:
 3. This works wonderfully with [`arbitrary_self_types`]: when we find an arbitrary self type we can
    just attempt to borrow with that pointer. This means e.g. that for `x: CppRef<Struct>` and `fn
    method(self: CppRef<Self>)` on `Field`, `x.field.method()` Just Works.
+
+## Desugaring the place operations
+
+Recall that the operations we can do on a place are: borrow, read, write, in-place-drop[^6]. Each
+of these comes with a corresponding `PlaceOp` trait. Once we know which operation to do on the
+place, we can desugar the operation to a call to the appropriate trait method, which will also check
+if that operation is allowed by the pointer in question.
+
+Let's desugar a `PlaceOp` operation on a place `p`.
+A place expression is made of three things: locals, derefs and projections, where
+"projections" means field accesses, indexing, and either of these mediated by `PlaceWrap`.
+
+So our place `p` can always be written as `p = q.proj` where `.proj` represents all the
+non-indirecting projections (including `PlaceWrap` ones), and `q` is a place expression that's
+either a local or a deref. Let `U` be the type of `q`. Then an operation on `p` desugars to
+`PlaceOp::operate(get!(q), proj_val!(U.proj))`, where `get!` is defined as:
+- if `q` is a local, `get!(q)` is `&raw const @@LocalPlace q`;
+- otherwise `q` is a deref which we can write `*(r.proj2)`, and we can get the right pointer using
+  `PlaceDeref::deref`[^2]. This applies recursively if `r` itself contains a deref, etc.
+
+Where `PlaceWrap` comes into play is in this `proj_val!` macro: that macro computes the value of the
+appropriate `P: Projection` type. If `PlaceWrap` is involved, then it will be used in computing that
+projection.
 
 ## Putting it all together
 
@@ -215,3 +226,4 @@ Below are the footnotes, this theme does not distinguish them very clearly:
 [^2]: I mentioned the idea of `PlaceDeref` briefly in my [original post][original_post] but hadn't fleshed it out. It's just a `&raw const`-reborrow meant to only be used for nested derefs. See its proper definition [here][PlaceDeref].
 [^3]: I'm talking about the `Receiver` trait from the [`arbitrary_self_types`] feature.
 [^5]: Also this would make inference more complicated because we'd have to try `PlaceBorrow` for each of the pointers involved, instead of having a deterministic choice like we do today.
+[^6]: I'm not counting deref because deref constructs a new place on which we'll do operations, so we'll always start the desugaring from a non-deref operation.

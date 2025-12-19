@@ -144,6 +144,18 @@ Where `PlaceWrap` comes into play is in this `proj_val!` macro: that macro compu
 appropriate `P: Projection` type. If `PlaceWrap` is involved, then it will be used in computing that
 projection.
 
+## Canonical reborrows
+
+As a special case of the borrows above, the official proposal includes a notion of ["canonical
+reborrows"](https://github.com/rust-lang/rust-project-goals/issues/390#issuecomment-3644702112),
+whereby each pointer can declare the default type with which to be reborrowed, and the (possibly
+temporary) syntax `@$place` uses it.
+
+The way it works is simple: `@$place` desugars just like `PlaceBorrow` above, except when we get to
+`PlaceOp::operate` we use `<PlaceBorrow<'_, _, <Ptr as
+CanonicalReborrow<proj_ty!(U.proj)>>::Output>>::borrow` where `Ptr` is the type of `*get!(q)`. This
+is equivalent to `@Output $place` with that same `Output` type.
+
 ## Putting it all together
 
 Let's go through a bunch of examples. In what follows `e` is the expression of interest that we want
@@ -216,6 +228,19 @@ struct W<T> {
     can make this `ArcRef<Field>`. But this would need something like `Arc<Box<Struct>> as
     PlaceBorrow<'_, P, ArcRef<Field>>` where `P` includes a deref. Projections are just an offset in
     our model currently, so that's not allowed[^5].
+
+8. `x: &Arc<[Struct]>`, `e := @x[42].field`
+
+    This desugars to `@ArcRef x[42].field`. The final desugaring looks like:
+    ```rust
+    let tmp: &raw const LocalPlace<&Arc<[Struct]>> = &raw const @@LocalPlace x;
+    let tmp: &raw const &Arc<[Struct]> = <LocalPlace<_> as PlaceDeref<_>>::deref(tmp, trivial_proj_val!(&Arc<[Struct]>));
+    let tmp: &raw const Arc<[Struct]> = <&_ as PlaceDeref<_>>::deref(tmp, trivial_proj_val!(Arc<[Struct]));
+    let arc_ref: ArcRef<Field> = <PlaceBorrow<'_, _, ArcRef<_>>>::borrow(tmp, proj_val!([Struct][42].field));
+    arc_ref
+    ```
+
+    Note again how the last derefed pointer is the one used to determine the reborrow.
 
 Below are the footnotes, this theme does not distinguish them very clearly:
 

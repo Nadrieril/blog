@@ -361,6 +361,29 @@ illustration.
 
 If we wanted to desugar that, we'd need a syntax for these.
 
+## In-place drop
+
+At the end of a scope, all the live locals and temporaries are automatically dropped. To desugar
+that, one could naively want to insert calls to `drop(local)`, but that's actually incorrect: drop
+actually happens in-place, which is soundness-critical for pinned types.
+
+```rust
+{
+    let x = String::new();
+}
+// would want to desugar to:
+{
+    let x = String::new();
+    unsafe { std::ptr::drop_in_place(&raw mut x); }
+    // But then borrowck will try to drop the place again!
+}
+```
+
+The issue is that we also need to tell borrowck "this place is dropped now, don't try to drop it
+again". Today I think `mem::forget(place)` works, but if we get ever get a feature for pinned places
+that would not be allowed. In that case we'll need "in-place mem::forget" or something along these
+lines.
+
 ## Etc
 
 What I would love to see eventually is a `cargo desugar` command[^5], or a code action in my editor,

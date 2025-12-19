@@ -302,6 +302,65 @@ match val.0.enum#discriminant {
 
 I don't have great ideas here.
 
+## Unchecked builtin indexing
+
+As we know, Rust inserts bound checks when accessing arrays/slices. On first approximation, we might
+desugar like this:
+
+```rust
+let slice: &mut [T] = ...;
+let x = &mut slice[0];
+// becomes
+assert!(slice.len() > 0);
+let x = unsafe { slice.get_unchecked_mut(0) };
+```
+
+However, a little known fact is that indexing is somewhat understood by the borrow-checker:
+```rust
+let slice: &mut [(A, B)] = ...;
+let x = &mut slice[i].0;
+let y = &mut slice[j].1;
+do_something(x);
+do_something(y);
+```
+
+This is allowed because regardless of `i` and `j` the borrows are guaranteed to be disjoint. But if
+we go through a function call like `get_unchecked_mut`, we need full exclusivity of the whole of
+`slice`! So if we want to preserve this behavior, we need a built-in operator for unchecked
+indexing (that the borrow-checker understands).
+
+
+## Constant, borrowck-tracked, indexing
+
+To continue on the interactions between borrow-checking and indexing, you might believe that the
+borrow-checker never takes into account indices: it refuses to borrow `&mut slice[i]` and `&mut
+slice[j]` simultaneously even when `i` and `j` are `0` and `1` which are obviously distinct.
+
+However there is a funky little corner of Rust semantics where it does track indices, namely slice patterns:
+```rust
+let slice: &mut [T] = ...;
+if let [a, .., b] = slice
+    && let [_, c, e @ .., d, _] = x {
+    // a,b,c,d: &mut T
+    // e: &mut [T]
+}
+// compiles to, morally:
+if slice.len() >= 2 && slice.len() >= 4 {
+    let a = &mut slice[const 0];
+    let b = &mut slice[const -1];
+    let c = &mut slice[const 1];
+    let d = &mut slice[const -2];
+    let e = &mut slice[const 2..const -2];
+}
+```
+
+It can tell that these are distinct because they use a special constant-indexing primitive in MIR.
+The reason for the notation I chose is because it supports also indices that are
+constant-starting-from-the-end, which are needed here. I used python-like negative indices for
+illustration.
+
+If we wanted to desugar that, we'd need a syntax for these.
+
 ## Etc
 
 What I would love to see eventually is a `cargo desugar` command[^5], or a code action in my editor,

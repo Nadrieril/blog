@@ -4,8 +4,8 @@ date: 2025-12-18 21:48 +0100
 ---
 
 > In a recent meeting, [Niko](https://github.com/nikomatsakis) proposed that we should add language
-features to enable desugaring more things into valid Rust. This blog post is me taking his idea and
-running with it.
+features to enable desugaring more implicit things into valid Rust. This blog post is me taking his
+idea and running with it.
 
 How does one specify a language like Rust? At the base of understanding a Rust program today, we
 have the [MIR](https://rustc-dev-guide.rust-lang.org/mir/index.html). It's a representation of

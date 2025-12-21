@@ -51,7 +51,7 @@ in-place".
 | **Read**     | ✅ | ✅   | ✅   | ✅   | ✅       | ✅       | ❌      |
 | **Write**    | ❌ | ✅   | ✅   | ❌   | ✅       | ✅       | ✅      |
 | **Move out** | ❌ | ❌   | ✅   | ❌   | ❌       | ❌       | ❌      |
-| **Drop**     | ❌ | ❌   | ✅   | ❌   | ✅       | ✅       | ❌      |
+| **Drop**     | ❌ | ❌   | ✅   | ❌   | ❌       | ✅       | ❌      |
 
 
 #### Table 2: if a loan was taken and is live, what can I still do to the place

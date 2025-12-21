@@ -39,19 +39,19 @@ I have a `&mut T` I may write a new value to it but not drop its contents.
 "Move out" means "move the value out without putting a new one in". "Drop" means "run the drop code
 in-place".
 
-|              | &  | &mut | &own | &uninit | &pin | &pin mut | &pin own |
+|              | &  | &mut | &own | &pin | &pin mut | &pin own | &uninit |
 |--:|--|--|
-| **&**        | ✅ | ✅   | ✅   | ❌      | ✅   | ✅       | ✅       |
-| **&mut**     | ❌ | ✅   | ✅   | ❌      | ❌   | ❌       | ❌       |
-| **&own**     | ❌ | ❌   | ✅   | ❌      | ❌   | ❌       | ❌       |
-| **&uninit**  | ❌ | ❌   | ❌   | ✅      | ❌   | ❌       | ❌       |
-| **&pin**     | ❌ | ❌   | ❌   | ❌      | ✅   | ✅       | ✅       |
-| **&pin mut** | ❌ | ❌   | ❌   | ❌      | ❌   | ✅       | ✅       |
-| **&pin own** | ❌ | ❌   | ✅   | ❌      | ❌   | ❌       | ✅       |
-| **Read**     | ✅ | ✅   | ✅   | ❌      | ✅   | ✅       | ✅       |
-| **Write**    | ❌ | ✅   | ✅   | ✅      | ❌   | ✅       | ✅       |
-| **Move out** | ❌ | ❌   | ✅   | ❌      | ❌   | ❌       | ❌       |
-| **Drop**     | ❌ | ❌   | ✅   | ❌      | ❌   | ✅       | ✅       |
+| **&**        | ✅ | ✅   | ✅   | ✅   | ✅       | ✅       | ❌      |
+| **&mut**     | ❌ | ✅   | ✅   | ❌   | ❌       | ❌       | ❌      |
+| **&own**     | ❌ | ❌   | ✅   | ❌   | ❌       | ❌       | ❌      |
+| **&pin**     | ❌ | ❌   | ❌   | ✅   | ✅       | ✅       | ❌      |
+| **&pin mut** | ❌ | ❌   | ❌   | ❌   | ✅       | ✅       | ❌      |
+| **&pin own** | ❌ | ❌   | ✅   | ❌   | ❌       | ✅       | ❌      |
+| **&uninit**  | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ✅      |
+| **Read**     | ✅ | ✅   | ✅   | ✅   | ✅       | ✅       | ❌      |
+| **Write**    | ❌ | ✅   | ✅   | ❌   | ✅       | ✅       | ✅      |
+| **Move out** | ❌ | ❌   | ✅   | ❌   | ❌       | ❌       | ❌      |
+| **Drop**     | ❌ | ❌   | ✅   | ❌   | ✅       | ✅       | ❌      |
 
 
 #### Table 2: if a loan was taken and is live, what can I still do to the place
@@ -62,19 +62,19 @@ me the row.
 
 For example, if a `&`-borrow was taken and is live, I may still read the place.
 
-|              | &  | &mut | &own | &uninit | &pin | &pin mut | &pin own |
+|              | &  | &mut | &own | &pin | &pin mut | &pin own | &uninit |
 |--:|--|--|
-| **&**        | ✅ | ❌   | ❌   | ❌      | ✅   | ❌       | ❌       |
-| **&mut**     | ❌ | ❌   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **&own**     | ❌ | ❌   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **&uninit**  | ❌ | ❌   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **&pin**     | ✅ | ❌   | ❌   | ❌      | ✅   | ❌       | ❌       |
-| **&pin mut** | ❌ | ❌   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **&pin own** | ❌ | ❌   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **Read**     | ✅ | ❌   | ❌   | ❌      | ✅   | ❌       | ❌       |
-| **Write**    | ❌ | ❌   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **Move out** | ❌ | ❌   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **Drop**     | ❌ | ❌   | ❌   | ❌      | ❌   | ❌       | ❌       |
+| **&**        | ✅ | ❌   | ❌   | ✅   | ❌       | ❌       | ❌      |
+| **&mut**     | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **&own**     | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **&pin**     | ✅ | ❌   | ❌   | ✅   | ❌       | ❌       | ❌      |
+| **&pin mut** | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **&pin own** | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **&uninit**  | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **Read**     | ✅ | ❌   | ❌   | ✅   | ❌       | ❌       | ❌      |
+| **Write**    | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **Move out** | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **Drop**     | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
 
 Unsurprisingly, most of the time we can't do anything else to the place, because the borrow is
 exclusive.
@@ -86,19 +86,19 @@ the column. The operations I may now do on the place give me the row.
 
 For example, if a `&`-borrow was taken and expired, I may no longer read the place.
 
-|              | &  | &mut | &own | &uninit | &pin | &pin mut | &pin own |
+|              | &  | &mut | &own | &pin | &pin mut | &pin own | &uninit |
 |--:|--|--|
-| **&**        | ✅ | ✅   | ❌   | ❌      | ✅   | ✅       | ❌       |
-| **&mut**     | ✅ | ✅   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **&own**     | ✅ | ✅   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **&uninit**  | ❌ | ❌   | ✅   | ✅      | ❌   | ❌       | ✅       |
-| **&pin**     | ✅ | ✅   | ❌   | ❌      | ✅   | ✅       | ❌       |
-| **&pin mut** | ✅ | ✅   | ❌   | ❌      | ✅   | ✅       | ❌       |
-| **&pin own** | ✅ | ✅   | ❌   | ❌      | ✅   | ✅       | ❌       |
-| **Read**     | ✅ | ✅   | ❌   | ❌      | ✅   | ✅       | ❌       |
-| **Write**    | ✅ | ✅   | ✅   | ✅      | ✅   | ✅       | ✅       |
-| **Move out** | ✅ | ✅   | ❌   | ❌      | ❌   | ❌       | ❌       |
-| **Drop**     | ✅ | ✅   | ❌   | ❌      | ✅   | ✅       | ❌       |
+| **&**        | ✅ | ✅   | ❌   | ✅   | ✅       | ❌       | ❌      |
+| **&mut**     | ✅ | ✅   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **&own**     | ✅ | ✅   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **&pin**     | ✅ | ✅   | ❌   | ✅   | ✅       | ❌       | ❌      |
+| **&pin mut** | ✅ | ✅   | ❌   | ✅   | ✅       | ❌       | ❌      |
+| **&pin own** | ✅ | ✅   | ❌   | ✅   | ✅       | ❌       | ❌      |
+| **&uninit**  | ❌ | ❌   | ✅   | ❌   | ❌       | ✅       | ✅      |
+| **Read**     | ✅ | ✅   | ❌   | ✅   | ✅       | ❌       | ❌      |
+| **Write**    | ✅ | ✅   | ✅   | ✅   | ✅       | ✅       | ✅      |
+| **Move out** | ✅ | ✅   | ❌   | ❌   | ❌       | ❌       | ❌      |
+| **Drop**     | ✅ | ✅   | ❌   | ✅   | ✅       | ❌       | ❌      |
 
 `&own` and `&uninit` both have the property that when they expire the place is considered to have
 been uninitialized. So we the only actions available are those that work on uninitialized places:

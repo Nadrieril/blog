@@ -28,7 +28,7 @@ you write to a `&uninit` you can reborrow it as `&own`, and vice-versa; this is 
 tables. Another example: dropping the contents of a place removes any pinning restriction placed on
 it.
 
-#### Table 1: given a reference, what actions are possible with it
+#### Table 1: Given a reference, what actions are possible with it
 
 How to read this table: the reference I have gives me the column, the action I want to do with it
 gives me the row (the reference types mean that the action is a reborrow with that type).
@@ -54,7 +54,7 @@ in-place".
 | **Drop**     | ❌ | ❌   | ✅   | ❌   | ❌       | ✅       | ❌      |
 
 
-#### Table 2: if a loan was taken and is live, what can I still do to the place
+#### Table 2: If a loan was taken and is live, what can I still do to the place
 
 How to read this table: a borrow of place `p` was taken and is still live; the kind of borrow gives
 me the column. The operations I may still do on the place (without going through that borrow) give
@@ -79,7 +79,7 @@ For example, if a `&`-borrow was taken and is live, I may still read the place.
 Unsurprisingly, most of the time we can't do anything else to the place, because the borrow is
 exclusive.
 
-#### Table 3: if a loan was taken and expired, what can I now do to the place
+#### Table 3: If a loan was taken and expired, what can I now do to the place
 
 How to read this table: a borrow of place `p` was taken and has expired; the kind of borrow gives me
 the column. The operations I may now do on the place give me the row.

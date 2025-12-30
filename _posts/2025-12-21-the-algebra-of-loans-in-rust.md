@@ -33,7 +33,7 @@ it.
 How to read this table: the reference I have gives me the column, the action I want to do with it
 gives me the row (the reference types mean that the action is a reborrow with that type).
 
-For example, if I have a `&own T` I can reborrow it into a `&mut T` but not a `&pin own T`. If
+For example, if I have a `&own T` I can reborrow it into a `&mut T` but not a `&pin mut T`. If
 I have a `&mut T` I may write a new value to it but not drop its contents.
 
 "Move out" means "move the value out without putting a new one in". "Drop" means "run the drop code

@@ -84,7 +84,7 @@ exclusive.
 How to read this table: a borrow of place `p` was taken and has expired; the kind of borrow gives me
 the column. The operations I may now do on the place give me the row.
 
-For example, if a `&`-borrow was taken and expired, I may no longer read the place.
+For example, if a `&own`-borrow was taken and expired, I may no longer read the place.
 
 |              | &  | &mut | &own | &pin | &pin mut | &pin own | &uninit |
 |--:|--|--|

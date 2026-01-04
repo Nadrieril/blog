@@ -6,6 +6,10 @@ date: 2025-12-18 21:48 +0100
 > In a recent meeting, [Niko](https://github.com/nikomatsakis) proposed that we should add language
 features to enable desugaring more implicit things into valid Rust. This blog post is me taking his
 idea and running with it.
+>
+> I have turned this idea into a [book](https://nadrieril.github.io/rust-via-desugarings)! This book
+describe ~30 desugaring steps that go from surface Rust to a MIR-like subset of it. I intend this to
+be a reference document or even a spec kind of thing.
 
 How does one specify a language like Rust? At the base of understanding a Rust program today, we
 have the [MIR](https://rustc-dev-guide.rust-lang.org/mir/index.html). It's a representation of

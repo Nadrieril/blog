@@ -436,10 +436,10 @@ So I imagine:
 ```rust
 let x: P<Q<Foo>> = ...;
 let a = @R (**x).a;
-// `**x` is a `Q`-kind-of-place, so presumably we use `impl PlaceBorrow<P, R<A>>
+// `**x` is a `Q`-kind-of-place, so presumably we use `impl PlaceBorrow<'_, _, R<A>>
 // for Q<Foo>`. that means we need a `*const Q<Foo>`. obvious desugar then:
-let _tmp: *const Q<Foo> = &raw const *x;
-let a = <_ as PlaceBorrow<..>>::borrow(_tmp, proj_type!(Foo.a));
+let _tmp: *const Q<Foo> = &raw const *x; // uses `P<T> as PlaceBorrow<'_, _, *const T>`
+let a = <Q<Foo> as PlaceBorrow<'_, _, R<A>>>::borrow(_tmp, proj_type!(Foo.a));
 ```
 This makes `*const`-reborrowing quite central. If `Q<Foo>: Copy` we'd only need `PlaceRead` which is
 much nicer. Could even relax `Copy` a bit since reading out a `&mut` is probably fine. I'm unsure

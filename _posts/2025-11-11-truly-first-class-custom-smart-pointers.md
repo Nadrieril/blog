@@ -341,7 +341,6 @@ trait PlaceRead<P: Projection>: HasPlace<Target=P::Source> {
 /// Foo::method(@MyPtr(x))
 /// // which calls into `impl PlaceBorrow<P, MyPtr<U>> for LocalPlace<T>`.
 /// ```
-/// See discussion about orphan rules below.
 #[repr(transparent)]
 pub struct LocalPlace<T>(T);
 impl<T> HasPlace<T> for LocalPlace<T> { ... }

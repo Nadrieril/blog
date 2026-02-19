@@ -290,6 +290,7 @@ impl<P> PlaceBorrow<'_, P, ArcRef<P::Target>>
                        for Arc<P::Source>
   where P: Projection
 { ... }
+// See https://hackmd.io/@rust-lang-team/S1I1aEc_lx#RCU-Read-Copy-Update
 impl<P, T> PlaceBorrow<'a, P, &'a Rcu<T>>
                           for &Mutex<P::Source>
   where P: Projection<Target=Rcu<T>>

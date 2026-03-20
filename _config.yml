@@ -5,6 +5,7 @@ plugins:
   - jekyll-remote-theme
   - jekyll-feed
   - jekyll-seo-tag
+  - jekyll-gfm-admonitions
 
 # Use upstream minima instead of GitHub Page's outdated version.
 remote_theme: jekyll/minima

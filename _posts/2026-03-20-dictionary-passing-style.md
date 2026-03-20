@@ -239,7 +239,7 @@ It's not obvious how to fit that into the dictionary approach.
 
 Our answer to this problem is: we may find a clean solution,
 or we may find good-enough hacks, or we may even choose to reject such code[^1],
-because dictionaries look to be worth it.
+because dictionaries could just be worth it.
 
 [^1]: A user may fix this code by adding a `T: Trait<Item = T>` constraint so that `caller` can know that `T = U`
 

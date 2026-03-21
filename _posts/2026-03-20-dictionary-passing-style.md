@@ -317,3 +317,6 @@ Stay tuned for more developments;
 you may also follow [our project
 goal](https://rust-lang.github.io/rust-project-goals/2026/dictionary-passing-style-experiment.html)
 when it gets approved.
+
+*Thanks to lcnr and Boxy teaching me so much about these topics. And particular
+thanks to lcnr for mentoring me through this project.*

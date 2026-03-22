@@ -116,7 +116,7 @@ We therefore need to distinguish the 4 kinds of ownership semantics we can encou
 - Today's default, with no implicit value at all: `<T: Trait>: const`[^2];
 - `&Context`-like semantics: `<T: Trait>: Copy`;
 - `&mut Context`-like semantics: `<T: Trait>: Reborrow` (using the `Reborrow` trait from [the
-  project goal](https://github.com/rust-lang/rust-project-goals/issues/399));
+  project goal](https://github.com/rust-lang/rust-project-goals/issues/399))[^4];
 - `Box<Context>`-like semantics: `<T: Trait>` can contain anything.
 
 You'll have recognized the similarity with the 4 closure traits [`FnStatic`](https://github.com/rust-lang/rust/issues/148768),
@@ -130,6 +130,8 @@ but I suspect some delicious APIs could be cooked with the full expressivity ðŸ‘
 Plz share in the comments I wanna see them.
 
 [^2]: Basically "is fully known at compile-time", so there's no need to thread any value. That's very different from `T: const Trait` which would mean "its methods can be called at compile-time". We'll probably not use such a similar notation, that would be confusing af x)
+
+[^4]: Not sure I'm using this trait right, but I understand it as "`Copy` but where the new value is borrowck-linked to the previous one", and we need something along these lines.
 
 ### Methods are closures
 

@@ -12,7 +12,7 @@ and it has a single constructor `refl x` with type `x == x`.
 You might find this weird: the two parameters feel a bit useless since they'll always be the same.
 And you'd be right: them being the same is the whole point of this being an equality.
 The way this works is that if you need a proof that two types are equal then you just take a `a ==
-b` a argument.
+b` as argument.
 
 So what can you do with an `a == b`?
 My favorite definition is the one from the [HoTT book](https://homotopytypetheory.org/book):

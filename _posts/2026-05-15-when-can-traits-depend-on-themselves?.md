@@ -356,7 +356,7 @@ trait WithGAT {
 
 impl<T: WithGAT> Trait for T {
     type Type1 = u32;
-    type Type2 = T::GAT<Self>::Type1;
+    type Type2 = T::GAT<Self>;
 }
 ```
 
@@ -471,7 +471,7 @@ where
 {
     proof self_sized: [Self: Sized] = l_sized;
     type Proof = R;
-    proof item_bound: [Self::Proof: Trait<R>] = r_trait;
+    proof item_bound: [Self::Proof: Trait<R>] = r_bound;
     // Here we use `l_bound::item_bound_eq` to prove that the `item_bound_eq` of the impl holds. When we
     // later pass the impl itself as `l_bound`, that creates a bad cycle.
     proof item_bound_eq: (Self::item_bound::Proof == Self)

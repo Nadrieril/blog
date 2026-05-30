@@ -549,8 +549,8 @@ where
 ```
 
 In this example, `trivial_eq` claims to prove `i32_impl::Assoc == ()`, i.e.
-`u32_impl[i32_impl, trivial_eq]::Assoc == ()`, which we can observe is true but we aren't done
-checking that this definition is even well-formed, so maybe we shouldn't use it yet?
+`u32_impl[i32_impl, trivial_eq]::Assoc == ()`, which we can observe is true but we aren't even done
+figuring out what `trivial_eq` even means, maybe we shouldn't use it yet?
 
 This overflows the trait solver today as well as my brain, but I'm not sure that's a bad cycle.
 I'll leave it here for you to ponder.

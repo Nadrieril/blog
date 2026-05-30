@@ -294,7 +294,7 @@ for each trait and type);
 is that all we're missing?
 I'm looking forward to finding out.
 
-[^6]: [Boxy](https://github.com/boxyuwu) tells me we may not need coherence, I'm looking forward to her blog post on the topic :3
+[^6]: [Boxy](https://github.com/boxyuwu) tells me we may not need coherence, I'm looking forward to her blog post on the topic :3 EDIT: it's [here](https://www.boxyuwu.blog/posts/an-incoherent-rust/)
 
 ## Summary
 

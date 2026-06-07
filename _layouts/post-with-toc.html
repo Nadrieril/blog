@@ -1,0 +1,95 @@
+---
+layout: post
+---
+{%- assign show_toc = false -%}
+{%- if page.toc != false and content contains '<h2 id="' -%}
+  {%- assign show_toc = true -%}
+{%- endif -%}
+
+{%- if show_toc -%}
+<div class="post-layout">
+  <aside class="post-toc-sidebar" aria-label="Table of contents">
+    {%- include toc.html html=content h_min=2 h_max=3 -%}
+  </aside>
+  <div class="post-main">
+    {{ content }}
+  </div>
+</div>
+<script>
+  (function () {
+    function initTocScrollspy() {
+      var toc = document.querySelector(".post-toc");
+      if (!toc) return;
+
+      var links = Array.prototype.slice.call(toc.querySelectorAll('a[href^="#"]'));
+      var sections = links.map(function (link) {
+        var id = link.hash.slice(1);
+        try {
+          id = decodeURIComponent(id);
+        } catch (_) {
+          return null;
+        }
+
+        var heading = document.getElementById(id);
+        return heading ? { heading: heading, link: link } : null;
+      }).filter(Boolean);
+
+      if (!sections.length) return;
+
+      var activeLink = null;
+      var ticking = false;
+
+      function setActive(link) {
+        if (link === activeLink) return;
+
+        if (activeLink) {
+          activeLink.classList.remove("is-active");
+          activeLink.removeAttribute("aria-current");
+          activeLink.parentElement.classList.remove("is-active");
+        }
+
+        activeLink = link;
+
+        if (activeLink) {
+          activeLink.classList.add("is-active");
+          activeLink.setAttribute("aria-current", "location");
+          activeLink.parentElement.classList.add("is-active");
+        }
+      }
+
+      function updateActive() {
+        var readingLine = Math.min(window.innerHeight * 0.35, 220);
+        var current = null;
+
+        sections.forEach(function (section) {
+          if (section.heading.getBoundingClientRect().top <= readingLine) {
+            current = section;
+          }
+        });
+
+        setActive(current && current.link);
+        ticking = false;
+      }
+
+      function scheduleUpdate() {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(updateActive);
+      }
+
+      updateActive();
+      window.addEventListener("scroll", scheduleUpdate, { passive: true });
+      window.addEventListener("resize", scheduleUpdate);
+      window.addEventListener("hashchange", scheduleUpdate);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initTocScrollspy);
+    } else {
+      initTocScrollspy();
+    }
+  }());
+</script>
+{%- else -%}
+{{ content }}
+{%- endif -%}

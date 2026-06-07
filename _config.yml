@@ -7,5 +7,12 @@ plugins:
   - jekyll-seo-tag
   - jekyll-gfm-admonitions
 
+defaults:
+  - scope:
+      path: ""
+      type: "posts"
+    values:
+      layout: "post-with-toc"
+
 # Use upstream minima instead of GitHub Page's outdated version.
 remote_theme: jekyll/minima

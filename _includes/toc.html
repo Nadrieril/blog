@@ -1,0 +1,32 @@
+{%- comment -%}
+Build a table of contents from rendered heading HTML.
+
+Parameters:
+- html: rendered post content
+- h_min: first heading level to include
+- h_max: last heading level to include
+{%- endcomment -%}
+{%- assign toc_min = include.h_min | default: 2 | plus: 0 -%}
+{%- assign toc_max = include.h_max | default: 3 | plus: 0 -%}
+{%- assign nodes = include.html | split: '<h' -%}
+
+<nav class="post-toc" aria-labelledby="post-toc-heading">
+  <h2 class="post-toc-title" id="post-toc-heading">On this page</h2>
+  <ol class="post-toc-list">
+    {%- for node in nodes -%}
+      {%- assign level_text = node | slice: 0, 1 -%}
+      {%- assign level = level_text | plus: 0 -%}
+      {%- if level >= toc_min and level <= toc_max and node contains 'id="' -%}
+        {%- assign opening_tag = node | split: '>' | first | append: '>' -%}
+        {%- assign heading_id = opening_tag | split: 'id="' | last | split: '"' | first -%}
+        {%- assign closing_tag = '</h' | append: level_text | append: '>' -%}
+        {%- assign heading_text = node | split: closing_tag | first | remove: opening_tag | strip_html | strip -%}
+        {%- if heading_id != '' and heading_text != '' %}
+          <li class="post-toc-item post-toc-h{{ level }}">
+            <a href="#{{ heading_id | escape }}">{{ heading_text | escape }}</a>
+          </li>
+        {%- endif -%}
+      {%- endif -%}
+    {%- endfor -%}
+  </ol>
+</nav>

@@ -61,6 +61,15 @@
   color: #111111;
 }
 
+.post-content h1 code.highlighter-rouge,
+.post-content h2 code.highlighter-rouge,
+.post-content h3 code.highlighter-rouge,
+.post-content h4 code.highlighter-rouge,
+.post-content h5 code.highlighter-rouge,
+.post-content h6 code.highlighter-rouge {
+  font-size: 0.85em;
+}
+
 .post-content h2[id],
 .post-content h3[id] {
   scroll-margin-top: 1rem;

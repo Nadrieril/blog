@@ -75,6 +75,25 @@
   scroll-margin-top: 1rem;
 }
 
+.post-content .footnotes {
+  border-top: 1px solid #e7e7e7;
+  color: #656565;
+  font-size: 0.9375rem;
+  margin-top: 45px;
+  padding-top: 20px;
+}
+
+.post-content .footnotes::before {
+  color: #414141;
+  content: "Footnotes";
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
 @media screen and (min-width: 1360px) {
   .post-layout {
     position: relative;

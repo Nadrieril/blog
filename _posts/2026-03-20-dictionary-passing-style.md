@@ -1,5 +1,5 @@
 ---
-title: "Elaborating Rust Traits to Dictionary-Passing Style"
+title: "Elaborating Rust Traits to Explicit Trait Proofs"
 date: 2026-03-20 05:53 +0100
 ---
 

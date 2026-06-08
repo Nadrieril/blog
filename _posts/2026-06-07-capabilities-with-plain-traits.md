@@ -14,7 +14,7 @@ bounds?
 [Boxy]: https://github.com/boxyuwu
 
 
-> This has surely been proposed many times before but I didn't find much on a quick search, if
+> This has surely been proposed before but I didn't find much on a quick search, if
 > anyone knows a good presentation of similar ideas DM me so I can give credit.
 
 > [!NOTE]

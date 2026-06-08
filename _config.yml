@@ -1,5 +1,8 @@
 author: Nadri
 title: Nadri's musings
+repository: Nadrieril/blog
+
+markdown: GFM
 
 plugins:
   - jekyll-remote-theme

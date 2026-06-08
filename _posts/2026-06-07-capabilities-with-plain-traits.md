@@ -13,15 +13,16 @@ bounds?
 [Jana]: https://github.com/jdonszelmann
 [Boxy]: https://github.com/boxyuwu
 
+
+> This has surely been proposed many times before but I didn't find much on a quick search, if
+> anyone knows a good presentation of similar ideas DM me so I can give credit.
+
 > [!NOTE]
 > Terminology note: I've been using "capabilities" to describe "something in the signature of
 > a function that allows some operations within it". This is distinct from "contexts", which is the
 > word I use for "implicit argument-passing". A capability is just a ZST context. Finally, both of
 > these are special cases of "effects", which propagate similarly between functions but can also
 > allow altering the control-flow.
-
-> This has surely been proposed many times before but I didn't find much on a quick search, if
-> anyone knows a good presentation of similar ideas DM me so I can give credit.
 
 ## Conditional Compilation using Trivial Bounds
 

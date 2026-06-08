@@ -308,7 +308,8 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
-  github-pages (~> 232)
+  github-pages
+  jekyll
   jekyll-feed (~> 0.12)
   jekyll-gfm-admonitions
   jekyll-remote-theme (~> 0.4.3)

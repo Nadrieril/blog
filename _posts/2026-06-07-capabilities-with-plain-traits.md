@@ -705,8 +705,16 @@ Stay tuned for more blog posts.
 
 ## Conclusion
 
-I hope this little exploration has convinced you of how damn flexible and powerful things can get when
-we piggy-back on traits.
+Here's what we've just been through:
+- I introduced three lightly crazy trait features:
+    - maybe bounds `T: maybe Unwind`;
+    - implication bounds `(Env: Unwind) => (T: Clone)`;
+    - "bound filters" `(T: Clone) without (Env: Unwind)`.
+- Using that and cleverly-chosen trait bounds, we subsumed a whole bunch of real or wanted language
+  features: type-checked `#[cfg]`, target-feature-generic functions, `nounwind fn`, and const traits.
+
+I hope this little exploration has gotten you excited for this new way of using trait bounds!
+There's more to come, in future blog posts by me or others.
 By and large the enabling feature was maybe bounds; I hope we get them in the language!
 
 This was a dense blog post, and I didn't spend a lot of time explaining the advanced

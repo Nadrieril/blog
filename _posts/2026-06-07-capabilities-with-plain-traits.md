@@ -251,7 +251,7 @@ This works because inlining a function into a scope with more features allows it
 extra features, and the `inline(always)` forces the code of `times_two_generic` to be codegenned
 twice, once inside each wrapper.
 
-With our new capabilities, this looks like:
+With our new capabilities, this looks like[^12]:
 ```rust
 fn times_two_generic(v: &mut [f64])
 where
@@ -314,6 +314,8 @@ In particular, we no longer rely on inlining[^7].
 
 <!-- The one thing we can't avoid is having many call sites of the same function, because each -->
 <!-- corresponds to a different choice of features which will be monomorphized as a separate function. -->
+
+[^12]: In practice we wouldn't need to list all the capabilities: std could have a trait alias `trait TargetFeatures: maybe Avx + maybe Avx512f + ... {}` that does list them all, and then a function that wishes to use any target features would only need `where Env: TargetFeatures`.
 
 [^7]: You'll note the striking similarity with the struct_target_feature proposal. I'd say they're in fact conceptually the same, except that with capabilities we can pass the special struct implicitly across function calls. See also [this blog post][traits_values] for more on the idea of trait bounds carrying implicit values.
 

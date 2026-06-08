@@ -139,30 +139,29 @@ our function doesn't even need the `Env: maybe Windows` bound.
 Many CPU architectures include optional instructions that may not be implemented by all CPUs, e.g.
 SIMD stuff.
 To make use of these special instructions, Rust has a mechanism called ["target
-features"](https://rust-lang.github.io/rfcs/2045-target-feature.html) to track at runtime and
-compile time whether a given set of instructions can be used.
+features"](https://rust-lang.github.io/rfcs/2045-target-feature.html) (see also [target_features
+1.1](https://github.com/rust-lang/rfcs/blob/master/text/2396-target-feature-1.1.md)[^13]) to track at
+runtime and compile time whether a given set of instructions can be used.
 This fits quite well in our traits model.
 
 The main part of this feature is that a function can opt-in to being compiled with a specific
 extended instruction set:
 ```rust
 #[target_feature(enable = "avx")]
-unsafe fn times_two_avx(v: &mut [f64]) {
+fn times_two_avx(v: &mut [f64]) {
     for v in v {
         *v *= 2.0;
     }
 }
 ```
-This function is unsafe to call because today Rust has no mechanism to prevent you from calling that
-function on the wrong target. There have been proposals, most notably
-[`struct_target_features`](https://github.com/rust-lang/rfcs/pull/3525), to force the user to do it
-right.
-This section is an alternative proposal.
+This function can be called safely from a context where the compiler knows the feature is enabled,
+or unsafely from a context where it doesn't.
 
-I propose, as you might expect, to write that function as follows:
+I propose, as you might expect, to write that instead as follows:
 ```rust
 fn times_two_avx(v: &mut [f64])
-where Env: Avx
+where
+    Env: Avx
 {
     for v in v {
         *v *= 2.0;
@@ -170,10 +169,12 @@ where Env: Avx
 }
 ```
 
-How does that work? `impl Mul for f64` would be changed to look like:
+How can that change how the function is compiled?
+`impl Mul for f64` and similar impls would be changed to look like:
 ```rust
 impl Mul for f64
-where Env: maybe Avx + maybe Avx512f + ...
+where
+    Env: maybe Avx + maybe Avx512f + maybe Aes + ...
 {
     type Output = f64;
     fn mul(self, rhs: f64) -> Self::Output {
@@ -186,14 +187,18 @@ where Env: maybe Avx + maybe Avx512f + ...
 }
 ```
 
-By the very way maybe bounds work, making use of this method in a function with a `where Env: Avx`
-will cause the impl to know `Avx` is available, which allows it to call a different instruction/intrinsic
-that the codegen backend can then vectorize using the special instructions.
+By the very way maybe bounds work, making use of this method in a function with a `where Env: Avx` bound
+will cause the impl to know `Avx` is available, which allows it to call a different
+instruction/intrinsic.
+The codegen backend can then vectorize that using the architecture-specific instructions.
 
 In other words, the trait bound is not magic, only the selected instruction/intrinsic carries the
-knowledge of the available target feature(s)[^4].
+knowledge of the available target feature(s)[^4]. This replaces the built-in feature tracking done by
+`target_feature` 1.1 with plain trait bounds.
 
 [^4]: Well, this is a cute model but it probably breaks down in a bunch of ways. Worst case we can make the trait bounds magic and have the same meaning as the attributes do today. Also I haven't thought about ABI-altering target features; could that be a maybe bound on the type decl, that would prevent equating `f64` with `f64 where Env: SomeFeature`? I don't know.
+
+[^13]: Thanks Luca Versari for [telling me about it](https://rust-lang.zulipchat.com/#narrow/channel/213817-t-lang/topic/An.20alternative.20to.20struct_target_feature/near/601252637)! I initially wrote this blog post without knowing the 1.1 version existed.
 
 ### Runtime-Dependent Trait Bounds?
 
@@ -212,13 +217,18 @@ if is_x86_feature_detected!("avx") {
 This would use the same kind of magic that maybe bounds use for control-flow dependent trait
 bounds. Maybe this expands to something like `if builtin_is_x86_feature_detected!("avx") && unsafe
 { assert_implemented_unchecked!(Env: Avx) }`.
+Unlike `is_implemented!(..)` which is purely compile-time information, which branch is taken here
+is unknown until runtime.
 
 [^5]: Actually `#[cfg(target_feature = ...)]` does exist, for when we force compilation for a specific instruction set, so we would materialize an impl then. But in the general case there may not be one.
 
-### The Inline-Reuse trick
+### Target Feature Multiversioning
 
-Today, a typical use of the feature will define the core computation once and make feature-specific
-wrappers around it:
+A notable limitation with the feature as it exists is that one must write one function for each desired target feature,
+in order for each to be compiled with the desired instruction set.
+
+A common trick relies on inlining to be able to define the core computation once and make
+feature-specific wrappers around it:
 ```rust
 #[inline(always)]
 fn times_two_generic(v: &mut [f64]) {
@@ -228,20 +238,20 @@ fn times_two_generic(v: &mut [f64]) {
 }
 
 #[target_feature(enable = "avx")]
-unsafe fn times_two_avx(v: &mut [f64]) {
+fn times_two_avx(v: &mut [f64]) {
     times_two_generic(v);
 }
 
 #[target_feature(enable = "avx512f")]
-unsafe fn times_two_avx512f(v: &mut [f64]) {
+fn times_two_avx512f(v: &mut [f64]) {
     times_two_generic(v);
 }
 
 pub fn times_two(v: &mut[f64]) {
     if is_x86_feature_detected!("avx512f") {
-        times_two_avx512f(v);
+        unsafe { times_two_avx512f(v); }
     } else if is_x86_feature_detected!("avx") {
-        times_two_avx(v);
+        unsafe { times_two_avx(v); }
     } else {
         times_two_generic(v);
     }
@@ -251,11 +261,20 @@ This works because inlining a function into a scope with more features allows it
 extra features, and the `inline(always)` forces the code of `times_two_generic` to be codegenned
 twice, once inside each wrapper.
 
-With our new capabilities, this looks like[^12]:
+This isn't great ergonomics, so there's a proposal called
+[`struct_target_features`](https://github.com/rust-lang/rfcs/pull/3525)
+that makes clever use of generics to get a single function to
+compile under many targets.
+It turns out our approach offers the same benefits.
+
+This is how we'd write that example[^14]:
 ```rust
+// Defined once in `core`.
+pub trait TargetFeatures = maybe Avx + maybe Avx512f + maybe Aes + ...;
+
 fn times_two_generic(v: &mut [f64])
 where
-    Env: maybe Avx + maybe Avx512f
+    Env: TargetFeatures
 {
     for v in v {
         *v *= 2.0;
@@ -273,51 +292,35 @@ pub fn times_two(v: &mut[f64]) {
 }
 ```
 
-The wrappers aren't needed here: a maybe bound acts like a `const IS_IMPLEMENTED: bool`
-generic argument; the function will be recompiled for each value of it, i.e. for each variant of
-which feature is enabled or not.
-In particular, we no longer rely on inlining[^7].
+Here's how it works: the `TargetFeatures` trait bound is an alias for a whole bunch of maybe bounds.
+Each of them acts like a `const FOO_IS_IMPLEMENTED: bool` generic argument, which is `true` if the
+corresponding bound was available when the function got called.
 
-<!-- Two drawbacks of the above: we have to list all the possible features on `times_two_generic`, and we -->
-<!-- could accidentally call `times_two_generic` in an empty environment, which would make use of no -->
-<!-- features and not be what the user expects. -->
-<!-- With a little bit more work, I think the ideal version could look like: -->
-<!-- ```rust -->
-<!-- // Note that this is not implemented by `Env` (as that would imply we can decide which feature is -->
-<!-- // available at compile-time). -->
-<!-- trait TargetFeatures: maybe Avx + maybe Avx512f + ... {} -->
+This means that the function will get compiled as many times as there are feature combinations
+under which it is called. In our case, that's three different versions.
 
-<!-- // The `Env: TargetFeatures` bound prevents this function from accidentally being -->
-<!-- // called in an empty environment, and makes it possible to use all existing -->
-<!-- // target features. -->
-<!-- fn times_two_generic(v: &mut [f64]) -->
-<!-- where -->
-<!--     Env: TargetFeatures -->
-<!-- { -->
-<!--     for v in v { -->
-<!--         *v *= 2.0; -->
-<!--     } -->
-<!-- } -->
+Compared to `struct_target_features`, we're actually doing almost the same thing: reusing generics
+for feature tracking and multiple compilation of a same function[^7].
+We however have the benefit of using a feature already well-integrated into the language.
+Here's one thing we can do that I believe `struct_target_features` cannot:
+safely coerce to function pointers[^15].
+```rust
+pub fn time_two_fn_ptr() -> fn(&mut [f64]) {
+    if is_x86_feature_detected!("avx512f") {
+        times_two_generic
+    } else if is_x86_feature_detected!("avx") {
+        times_two_generic
+    } else {
+        times_two_generic
+    }
+}
+```
 
-<!-- pub fn times_two(v: &mut[f64]) { -->
-<!--     // Each macro also introduces `Env: TargetFeatures` now. -->
-<!--     if is_x86_feature_detected!("avx512f") { -->
-<!--         times_two_generic(v); -->
-<!--     } else if is_x86_feature_detected!("avx") { -->
-<!--         times_two_generic(v); -->
-<!--     } else { -->
-<!--         no_target_feature!(); // Only introduces `Env: TargetFeatures` into the scope -->
-<!--         times_two_generic(v); -->
-<!--     } -->
-<!-- } -->
-<!-- ``` -->
+[^7]: In some sense all this does is pass the `struct_target_features` magic struct value implicitly. See also [this blog post][traits_values] for more on the idea of trait bounds carrying implicit values.
 
-<!-- The one thing we can't avoid is having many call sites of the same function, because each -->
-<!-- corresponds to a different choice of features which will be monomorphized as a separate function. -->
+[^14]: One notable drawback of this setup is that it's possible to accidentally call `times_two_generic` instead of `times_two`, thus losing the benefits of hardware acceleration. Beyond just making it non-`pub`, there are also ways we could also change `TargetFeatures` to prevent that.
 
-[^12]: In practice we wouldn't need to list all the capabilities: std could have a trait alias `trait TargetFeatures: maybe Avx + maybe Avx512f + ... {}` that does list them all, and then a function that wishes to use any target features would only need `where Env: TargetFeatures`.
-
-[^7]: You'll note the striking similarity with the struct_target_feature proposal. I'd say they're in fact conceptually the same, except that with capabilities we can pass the special struct implicitly across function calls. See also [this blog post][traits_values] for more on the idea of trait bounds carrying implicit values.
+[^15]: To be precise about what's happening here: in order to coerce a generic function item to a function pointer, its generics must be instantiated and trait clauses proven. So things work like before: this will create three versions of the function, two of them hardware accelerated.
 
 ## Tracking Whether a Function Can Unwind
 

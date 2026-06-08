@@ -12,8 +12,7 @@ title: Homepage
 
 ### 📫 Contact
 
-- I'm `Nadrieril` everywhere: [GitHub](https://github.com/Nadrieril),
-  [Twitter](https://x.com/nadrieril).
+- I'm `Nadrieril` everywhere: [GitHub](https://github.com/Nadrieril), Zulip, Discord.
 - For matters related to Rust, find me on the [Rust Zulip](https://rust-lang.zulipchat.com/);
 - For matters related to [Charon](https://github.com/AeneasVerif/charon) more specifically, find me
   on the [AeneasVerif Zulip](https://aeneas-verif.zulipchat.com/);

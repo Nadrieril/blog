@@ -1,6 +1,8 @@
 author: Nadri
 title: Nadri's musings
 repository: Nadrieril/blog
+url: https://nadrieril.github.io
+baseurl: /blog
 
 markdown: GFM
 

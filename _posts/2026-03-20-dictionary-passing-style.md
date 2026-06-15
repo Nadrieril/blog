@@ -109,7 +109,7 @@ impl "clone_u32" Clone for u32 { ... }
 // This takes two arguments: the explicit `T`, and the implicit `T: Clone`.
 impl<T> "clone_vec" Clone for Vec<T>
 where
-    clone_t: [T: Clone] // weird syntax don't @ me
+    clone_t: (T: Clone) // weird syntax don't @ me
 {
     fn clone(&self) -> Self {
         vec
@@ -163,8 +163,8 @@ impl<T> "is_impl" Is<T> for T {}
 // Then an equality bound looks like:
 fn foo<T>()
 where
-    iter_t: [T: Iterator],
-    item_is_u32: [iter_t::Item: Is<u32>],
+    iter_t: (T: Iterator),
+    item_is_u32: (iter_t::Item: Is<u32>),
 { ... }
 ```
 
@@ -218,8 +218,8 @@ fn callee<T>(t: T) -> the_impl<T>::Item {
 
 fn caller<T, U>(t: T) -> U
 where
-    t_trait: [T: Trait]
-    item_is_u: [t_trait::Item: Is<U>]
+    t_trait: (T: Trait)
+    item_is_u: (t_trait::Item: Is<U>)
 {
     // ERROR: `the_impl<T>::Item` is `T`, yet we need a `U`.
     callee::<T>(t)
@@ -286,7 +286,10 @@ is too recursive, so we end up "proving X by assuming X".
 
 And so we also need a more global notion of "the overall elaborated program isn't
 too ridiculously recursive".
-Defining this properly is what we're working on at the moment.
+Defining this properly is what we're working on at the moment;
+you may enjoy [this blog
+post](https://nadrieril.github.io/blog/2026/05/14/when-can-traits-depend-on-themselves.html) that
+digs deeper into that topic.
 
 One question I don't know the answer to yet is: are these conditions enough?
 Most likely we'd also need a condition related to coherence[^6] (the fact that there's at most one impl

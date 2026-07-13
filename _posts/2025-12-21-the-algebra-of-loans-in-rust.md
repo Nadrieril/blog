@@ -40,7 +40,7 @@ I have a `&mut T` I may write a new value to it but not drop its contents.
 in-place".
 
 |              | &  | &mut | &own | &pin | &pin mut | &pin own | &uninit |
-|--:|--|--|
+|:-------------|:--:|:----:|:----:|:----:|:--------:|:--------:|:-------:|
 | **&**        | ✅ | ✅   | ✅   | ✅   | ✅       | ✅       | ❌      |
 | **&mut**     | ❌ | ✅   | ✅   | ❌   | ❌       | ❌       | ❌      |
 | **&own**     | ❌ | ❌   | ✅   | ❌   | ❌       | ❌       | ❌      |
@@ -63,7 +63,7 @@ me the row.
 For example, if a `&`-borrow was taken and is live, I may still read the place.
 
 |              | &  | &mut | &own | &pin | &pin mut | &pin own | &uninit |
-|--:|--|--|
+|:-------------|:--:|:----:|:----:|:----:|:--------:|:--------:|:-------:|
 | **&**        | ✅ | ❌   | ❌   | ✅   | ❌       | ❌       | ❌      |
 | **&mut**     | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
 | **&own**     | ❌ | ❌   | ❌   | ❌   | ❌       | ❌       | ❌      |
@@ -87,7 +87,7 @@ the column. The operations I may now do on the place give me the row.
 For example, if a `&own`-borrow was taken and expired, I may no longer read the place.
 
 |              | &  | &mut | &own | &pin | &pin mut | &pin own | &uninit |
-|--:|--|--|
+|:-------------|:--:|:----:|:----:|:----:|:--------:|:--------:|:-------:|
 | **&**        | ✅ | ✅   | ❌   | ✅   | ✅       | ❌       | ❌      |
 | **&mut**     | ✅ | ✅   | ❌   | ❌   | ❌       | ❌       | ❌      |
 | **&own**     | ✅ | ✅   | ❌   | ❌   | ❌       | ❌       | ❌      |
